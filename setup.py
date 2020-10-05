@@ -5,14 +5,14 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="qiskit_quantum_knn",
-    version="0.0.2",
+    version="0.0.3",
     author="Daniël J. Kok",
     author_email="djonatankok@gmail.com",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/GroenteLepel/qiskit-quantum-knn",
     packages=setuptools.find_packages(),
-    install_requirest=[
+    install_requires=[
         "qiskit",
         "numpy",
         "scipy"
