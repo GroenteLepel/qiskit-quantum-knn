@@ -13,9 +13,9 @@ setuptools.setup(
     url="https://github.com/GroenteLepel/qiskit-quantum-knn",
     packages=setuptools.find_packages(),
     install_requires=[
-        "qiskit",
         "numpy",
-        "scipy"
+        "scipy",
+        "qiskit"
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -26,5 +26,10 @@ setuptools.setup(
         "Programming Language :: Python :: 3.8",
         "Topic :: Scientific/Engineering :: Physics",
     ],
-    python_requires='>=3.6'
+    python_requires='>=3.6',
+    extras_require={
+        'visualization': ['matplotlib>=2.1', 'ipywidgets>=7.3.0',
+                          'pydot', "pillow>=4.2.1", "pylatexenc>=1.4",
+                          "seaborn>=0.9.0", "pygments>=2.4"],
+    }
 )
