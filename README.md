@@ -11,7 +11,7 @@
 computer, which is build with [**Qiskit**][qiskit-github].
 
 Qiskit Quantum kNN is made as a final project to fulfill a master's degree
-for the Radboud University Nijmegen, in collaboration with ING Quantum 
+at the Radboud University Nijmegen, in collaboration with ING Quantum 
 Technology. It is build by using [Afham et al. (2020)][afham2020] as it's
 primary guide on how to construct the quantum circuit used for distance
 measurements.
