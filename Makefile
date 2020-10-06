@@ -39,10 +39,13 @@ clean-test: ## remove test and coverage artifacts
 test: ## run tests on every Python version with tox
 	python setup.py test
 
+freeze: ## make a snapshot of the current code structure
+	pip freeze | grep -v "pkg-resources" > requirements.txt
+
 release: dist ## package and upload a release
 	twine upload dist/*
 
-release-test: dist: ## package and upload release to test.pypi.org
+release-test: dist ## package and upload release to test.pypi.org
 	twine upload --repository testpypi dist/*
 
 dist: clean ## builds source and wheel package
