@@ -36,8 +36,9 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
-test: ## run tests on every Python version with tox
-	python setup.py test
+test: ## run tests on this code snapshot with pytest
+	pip install -e .
+	py.test
 
 freeze: ## make a snapshot of the current code structure
 	pip freeze | grep -v "pkg-resources" > requirements.txt
