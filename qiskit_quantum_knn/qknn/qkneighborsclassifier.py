@@ -19,7 +19,7 @@ from qiskit_quantum_knn.config import Config
 from qiskit_quantum_knn.qknn._qknn import _QKNN
 from qiskit_quantum_knn.qknn import _qknn_construction as qc
 
-config = Config("config/config.json")
+config = Config()
 logger = logging.getLogger(config["LOGGER"])
 
 UnionQInstBaseB = Union[aqua.QuantumInstance, qkp.BaseBackend]

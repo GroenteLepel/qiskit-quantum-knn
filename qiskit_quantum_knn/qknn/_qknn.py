@@ -4,7 +4,7 @@ from qiskit.aqua.algorithms.classifiers.qsvm._qsvm_abc import _QSVM_ABC
 
 from qiskit_quantum_knn.config import Config
 
-config = Config("config/config.json")
+config = Config()
 logger = logging.getLogger(config["LOGGER"])
 
 
