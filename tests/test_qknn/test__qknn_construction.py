@@ -2,7 +2,7 @@ import os, logging
 
 from qiskit import QuantumRegister
 
-from qiskit_quantum_knn.config import Config
+
 from qiskit_quantum_knn.qknn._qknn_construction import create_oracle
 
 logging.basicConfig(level=logging.DEBUG)
@@ -21,4 +21,3 @@ def test_create_oracle(caplog):
             [0, 1, 0, 0]
         ]
     )
-    assert "sopmething" in caplog.text

@@ -15,12 +15,10 @@ import qiskit.providers as qkp
 import qiskit.aqua.utils.subsystem as ss
 from qiskit.aqua.algorithms import QuantumAlgorithm
 
-from qiskit_quantum_knn.config import Config
 from qiskit_quantum_knn.qknn._qknn import _QKNN
 from qiskit_quantum_knn.qknn import _qknn_construction as qc
 
-config = Config()
-logger = logging.getLogger(config["LOGGER"])
+logger = logging.getLogger(__name__)
 
 UnionQInstBaseB = Union[aqua.QuantumInstance, qkp.BaseBackend]
 OptionalQInstance = Optional[UnionQInstBaseB]

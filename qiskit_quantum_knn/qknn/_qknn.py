@@ -2,10 +2,7 @@ import logging
 
 from qiskit.aqua.algorithms.classifiers.qsvm._qsvm_abc import _QSVM_ABC
 
-from qiskit_quantum_knn.config import Config
-
-config = Config()
-logger = logging.getLogger(config["LOGGER"])
+logger = logging.getLogger(__name__)
 
 
 class _QKNN(_QSVM_ABC):

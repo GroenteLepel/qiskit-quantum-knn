@@ -7,10 +7,8 @@ import qiskit.extensions.quantum_initializer as qi
 import qiskit.circuit.instruction as qinst
 
 import qiskit_quantum_knn.qknn.quantumgates as gates
-from qiskit_quantum_knn.config import Config
 
-conf = Config()
-logger = logging.getLogger(conf["LOGGER"])
+logger = logging.getLogger(__name__)
 
 """Construction of a qknn QuantumCircuit."""
 
