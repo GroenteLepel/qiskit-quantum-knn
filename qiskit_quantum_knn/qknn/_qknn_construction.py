@@ -231,22 +231,3 @@ def add_measurements(qknn_circ: qk.QuantumCircuit) -> qk.QuantumCircuit:
     logger.debug("Added measurements.")
 
     return qknn_circ
-
-
-if __name__ == '__main__':
-    import os
-    from qiskit import QuantumRegister
-
-    logger = logging.getLogger(conf["LOGGER"])
-    print(os.getcwd())
-    logger.info("test")
-    print(conf["LOGGER"])
-    create_oracle(
-        r_train=QuantumRegister(2),
-        r_comp_basis=QuantumRegister(2),
-        train_data=
-        [
-            [1, 0, 0, 0],
-            [0, 1, 0, 0]
-        ]
-    )
