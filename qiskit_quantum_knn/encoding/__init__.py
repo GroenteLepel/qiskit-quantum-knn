@@ -1,0 +1,1 @@
+import qiskit_quantum_knn.encoding.analog as analog
