@@ -5,9 +5,9 @@ name: Test project
 
 on:
   push:
-    branches: [ test-workflows ]
+    branches: [ master ]
   pull_request:
-    branches: [ test-workflows ]
+    branches: [ master ]
 
 jobs:
   build:
