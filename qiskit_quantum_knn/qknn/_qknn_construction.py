@@ -1,9 +1,10 @@
-import logging
-from typing import List
+import logging, warnings
+from typing import List, Union
 
 import numpy as np
 import qiskit as qk
 import qiskit.extensions.quantum_initializer as qi
+import qiskit.circuit as qcirc
 import qiskit.circuit.instruction as qinst
 
 import qiskit_quantum_knn.qknn.quantumgates as gates
@@ -13,8 +14,117 @@ logger = logging.getLogger(__name__)
 """Construction of a qknn QuantumCircuit."""
 
 
+def create_qknn(state_to_classify: Union[List, np.ndarray],
+                classified_states: Union[List, np.ndarray],
+                add_measurement: bool = False) -> qk.QuantumCircuit:
+    """ Construct one QKNN QuantumCircuit.
+            Args:
+                state_to_classify (numpy.ndarray): array of dimension N complex
+                    values describing the state to classify via KNN.
+                classified_states (numpy.ndarray): array containing M training samples
+                    of dimension N.
+                add_measurement (bool): controls if measurements must be added
+                    to the classical registers.
+            Returns:
+                QuantumCircuit: the constructed circuit.
+    """
+    oracle = create_oracle(classified_states)
+    return construct_circuit(
+        state_to_classify,
+        oracle,
+        add_measurement
+    )
+
+
+# noinspection PyTypeChecker
+def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
+    """
+    Creates an oracle to perform as:
+        W |0>|basis_state> = |phi>|basis_state>,     (14)
+    where the equation number refers to that of Afham; Basheer, Afrad; Goyal,
+    Sandeep K. (2020). Creates oracle to bring qubit into desired state |phi>
+    as Instruction, this can be appended to the desired circuit.
+    Args:
+        train_data (List or ndarray): List of vectors with dimension len(r_train) to
+                           initialize r_train to.
+    Returns:
+        circuit.instruction.Instruction: Instruction of the Oracle.
+    """
+    train_shape = np.shape(train_data)
+    # check if training data is properly provided
+    if len(train_shape) != 2:
+        raise ValueError("Provided training data not 2-dimensional. Provide"
+                         "a matrix of shape n_samples x dim")
+    # get the log2 values of the dimension of vectors n and number of samples
+    #  m from training data
+    m, n = np.log2(train_shape)
+    if not n.is_integer():
+        warnings.warn("Training dimension not a positive power of 2, adding"
+                      "extra qubits to comply.")
+        np.ceil(n)
+    if not m.is_integer():
+        warnings.warn("Number of training states not a positive power of 2,"
+                      "adding extra qubits to comply.")
+        np.ceil(m)
+
+    r_train = qk.QuantumRegister(n, name='train_states')
+    r_comp_basis = qk.QuantumRegister(m, name='comp_basis')
+
+    # initialize the list containing the controlled inits, which will assign
+    #  each training state i to r_train (so should be as long as number of
+    #  samples)
+    controlled_inits = [qcirc.ControlledGate] * train_shape[0]
+
+    # initialize the circuit
+    oracle_circ = qk.QuantumCircuit(
+        r_train,
+        r_comp_basis,
+        name='oracle'
+    )
+
+    # create all the controlled inits for each vector in train data
+    for i, train_state in enumerate(train_data):
+        controlled_inits[i] = \
+            gates.controlled_initialize(
+                r_train,
+                train_state,
+                num_ctrl_qubits=r_comp_basis.size,
+                name="phi_{}".format(i)
+            )
+
+    # apply all the x-gates and controlled inits to the circuit
+    bin_number_length = r_comp_basis.size
+    # "kick start" the loop by defining the first "previous" number
+    prev_bin_array = np.ones(bin_number_length, dtype=int)
+
+    x_location_values = np.arange(r_comp_basis.size) + 1
+    for i, c_init in enumerate(controlled_inits):
+        # represent i in binary number with length bin_number_length, so
+        #  leading zeros are included
+        binary_string = "{1:0{0:d}b}".format(bin_number_length, i)
+        logger.debug(f"State i = {i} represented as string {binary_string}.")
+
+        # convert binary string to array
+        curr_bin_array = np.array(list(binary_string), dtype=int)
+        # determine where to put x-gates via logical xor in the binary values
+        indices = np.logical_xor(prev_bin_array, curr_bin_array)
+        where_to_apply_x = np.arange(bin_number_length)[indices].tolist()
+        logger.debug(f"applying x-gates to: {where_to_apply_x}")
+        # apply the x-gates
+        oracle_circ.x(r_comp_basis[where_to_apply_x])
+        # apply the controlled init
+        oracle_circ.append(c_init, r_comp_basis[:] + r_train[:])
+
+        # update the binary value for the next loop
+        prev_bin_array = curr_bin_array
+
+    logger.debug(f"Created oracle as:\n{oracle_circ.draw()}")
+
+    return oracle_circ.to_instruction()
+
+
 def construct_circuit(state_to_classify: np.ndarray,
-                      training_data: np.ndarray,
+                      oracle: qinst.Instruction,
                       add_measurement: bool) -> qk.QuantumCircuit:
     """Setup for a qknn QuantumCircuit.
     Constructs the qknn QuantumCircuit according to the stepwise "instructions"
@@ -24,6 +134,8 @@ def construct_circuit(state_to_classify: np.ndarray,
             values describing the state to classify via KNN.
         training_data (numpy.ndarray): array containing M training samples
             of dimension N.
+        oracle (qiskit Instruction): oracle W|i>|0> = W|i>|phi_i> for applying
+            training data.
         add_measurement (bool): controls if measurements must be added
             to the classical registers.
     Raises:
@@ -33,10 +145,13 @@ def construct_circuit(state_to_classify: np.ndarray,
         QuantumCircuit: constructed circuit.
     """
 
+    # get the dimensions of the state to classify
     state_dimension = len(state_to_classify)
-    n_train_samples = len(training_data)
 
-    n, m = np.log2(state_dimension), np.log2(n_train_samples)
+    # get the number of qubits for the registers containing the state to
+    #  classify and the number of train samples
+    n = np.log2(state_dimension)  # n qubits for describing states
+    m = oracle.num_qubits - n  # n qubits for computational basis
 
     # Check if param is a power of 2
     if (n == 0 or not n.is_integer()) and (m == 0 or not m.is_integer()):
@@ -44,11 +159,12 @@ def construct_circuit(state_to_classify: np.ndarray,
             "Desired statevector length not a positive power of 2."
         )
 
-    # step 1
+    # step 1: initialise (creates registers, sets qubits to |0> or the
+    #  state to classify
     qknn_circ = initialise_qknn(n, m, state_to_classify)
-    # step 2
-    qknn_circ = state_transformation(qknn_circ, training_data)
-    # step 3
+    # step 2: state trans. (applies oracle)
+    qknn_circ = state_transformation(qknn_circ, oracle)
+    # step 3: adds the measurement gates
     if add_measurement:
         qknn_circ = add_measurements(qknn_circ)
 
@@ -108,7 +224,7 @@ def initialise_qknn(log2_dim: int,
 
 
 def state_transformation(qknn_circ: qk.QuantumCircuit,
-                         train_data: np.ndarray) -> qk.QuantumCircuit:
+                         oracle: qinst.Instruction) -> qk.QuantumCircuit:
     """
     Coincides with Step 2: the "state transformation" section from Afham;
     Basheer, Afrad; Goyal, Sandeep K. (2020). Applies Hadamard gates and
@@ -116,8 +232,9 @@ def state_transformation(qknn_circ: qk.QuantumCircuit,
     Args:
         qknn_circ (QuantumCircuit): has been initialised according to
             initialise_qknn().
-        train_data (List): List with n_train_samples complex vectors of
-            dimension state_dimension.
+        oracle (qiskit Instruction): oracle W|i>|0> = W|i>|phi_i> for applying
+            training data.
+
     Returns:
         QuantumCircuit: the QuantumCircuit with state transformation applied.
     """
@@ -129,8 +246,6 @@ def state_transformation(qknn_circ: qk.QuantumCircuit,
     qknn_circ.h(comp_basis)
 
     # perform equation 15
-    # create oracle
-    oracle = create_oracle(train_register, comp_basis, train_data)
     # append to circuit
     qknn_circ.append(oracle, train_register[:] + comp_basis[:])
 
@@ -147,68 +262,6 @@ def state_transformation(qknn_circ: qk.QuantumCircuit,
     logger.info(f"transformed registers to circuit:\n{qknn_circ.draw()}")
 
     return qknn_circ
-
-
-# noinspection PyTypeChecker
-def create_oracle(r_train: qk.QuantumRegister,
-                  r_comp_basis: qk.QuantumRegister,
-                  train_data) -> qinst.Instruction:
-    """
-    Creates an oralce to perform as:
-        W |0>|basis_state> = |phi>|basis_state>,     (14)
-    where the equation number refers to that of Afham; Basheer, Afrad; Goyal,
-    Sandeep K. (2020). Creates oracle to bring qubit into desired state |phi>
-    as Instruction, this can be appended to the desired circuit.
-    Args:
-        r_train (QuantumRegister): initialized to the train data.
-        r_comp_basis (QuantumRegister): contains the computational
-                                        basis |i> to bring r_train into state
-                                        classified_states[i]
-        train_data (List): List of vectors with dimension len(r_train) to
-                           initialize r_train to.
-    Returns:
-        circuit.instruction.Instruction: Instruction of the Oracle.
-    """
-    controlled_inits = [qinst.Instruction] * len(train_data)
-
-    # initialize the circuit
-    oracle_circ = qk.QuantumCircuit(
-        r_train,
-        r_comp_basis,
-        name='oracle'
-    )
-
-    # create all the controlled inits for each vector in train data
-    for i, train_state in enumerate(train_data):
-        controlled_inits[i] = \
-            gates.controlled_initialize(
-                r_train,
-                train_state,
-                num_ctrl_qubits=r_comp_basis.size,
-                name="phi_{}".format(i)
-            )
-
-    bin_number_length = r_comp_basis.size
-    # "kick start" the loop by defining the first "previous" number
-    prev_bin_array = np.ones(bin_number_length, dtype=int)
-
-    x_location_values = np.arange(r_comp_basis.size) + 1
-    for i, c_init in enumerate(controlled_inits):
-        # represent i in binary number with length bin_number_length, so
-        #  leading zeros are included
-        binary_string = "{1:0{0:d}b}".format(bin_number_length, i)
-        # convert this to array
-        curr_bin_array = np.array(list(binary_string), dtype=int)
-        indices = np.logical_xor(prev_bin_array, curr_bin_array)
-        where_to_apply_x = np.arange(bin_number_length)[indices].tolist()
-        oracle_circ.x(r_comp_basis[where_to_apply_x])
-        oracle_circ.append(c_init, r_comp_basis[:] + r_train[:])
-
-        prev_bin_array = curr_bin_array
-
-    logger.debug(f"Created oracle as:\n{oracle_circ.draw()}")
-
-    return oracle_circ.to_instruction()
 
 
 def add_measurements(qknn_circ: qk.QuantumCircuit) -> qk.QuantumCircuit:

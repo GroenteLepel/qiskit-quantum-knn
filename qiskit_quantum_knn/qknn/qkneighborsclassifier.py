@@ -14,6 +14,7 @@ import qiskit.aqua as aqua
 import qiskit.providers as qkp
 import qiskit.aqua.utils.subsystem as ss
 from qiskit.aqua.algorithms import QuantumAlgorithm
+import qiskit.circuit.instruction as qinst
 
 from qiskit_quantum_knn.qknn._qknn import _QKNN
 from qiskit_quantum_knn.qknn import _qknn_construction as qc
@@ -83,14 +84,14 @@ class QKNeighborsClassifier(QuantumAlgorithm):
 
     @staticmethod
     def construct_circuit(state_to_classify: np.ndarray,
-                          classified_states: np.ndarray,
+                          oracle: qinst.Instruction,
                           add_measurement: bool = False) -> qk.QuantumCircuit:
         """ Construct one QKNN QuantumCircuit.
         Args:
             state_to_classify (numpy.ndarray): array of dimension N complex
                 values describing the state to classify via KNN.
-            classified_states (numpy.ndarray): array containing M training samples
-                of dimension N.
+            oracle (qiskit Instruction): oracle W|i>|0> = W|i>|phi_i> for applying
+                training data.
             add_measurement (bool): controls if measurements must be added
                 to the classical registers.
         Returns:
@@ -98,7 +99,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         """
         return qc.construct_circuit(
             state_to_classify,
-            classified_states,
+            oracle,
             add_measurement
         )
 
@@ -110,11 +111,11 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         the training data and provided data_to_predict.
 
         Args:
-            data_to_predict (numpy.ndarray): data points, 2-D array, NxD, where
+            data_to_predict (ndarray): data points, 2-D array, NxD, where
                 N is the number of data points and D is the dimensionality of
                 the vector. This should coincide with the provided training
                 data.
-            training_data (numpy.ndarray): data points which we want to know
+            training_data (ndarray): data points which we want to know
                 the distance of between data_to_predict.
             quantum_instance (Union[QuantumInstance, BaseBackend]): optional,
                 quantum instance with all experiment settings, or basebackend.
@@ -125,6 +126,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
             AquaError: Quantum instance is not present.
         """
         measurement = True  # can be adjusted if statevector_sim
+        oracle = qc.create_oracle(training_data)
 
         # parallel_map() creates QuantumCircuits in parallel to be executed by
         #  a QuantumInstance
@@ -132,10 +134,10 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         circuits = qktools.parallel_map(
             QKNeighborsClassifier.construct_circuit,
             data_to_predict,
-            task_args=(
-                training_data,
+            task_args=[
+                oracle,
                 measurement
-            )
+            ]
         )
         logger.info("Done.")
 
