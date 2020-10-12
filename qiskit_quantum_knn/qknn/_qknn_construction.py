@@ -50,23 +50,22 @@ def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
     Returns:
         circuit.instruction.Instruction: Instruction of the Oracle.
     """
+    # get shape of training data
     train_shape = np.shape(train_data)
-    # check if training data is properly provided
+    # check if training data is two dimensional
     if len(train_shape) != 2:
         raise ValueError("Provided training data not 2-dimensional. Provide"
                          "a matrix of shape n_samples x dim")
-    # get the log2 values of the dimension of vectors n and number of samples
-    #  m from training data
+    # get the log2 values of the number of samples
+    #  m from training data and dimension of vectors n
     m, n = np.log2(train_shape)
-    if not n.is_integer():
-        warnings.warn("Training dimension not a positive power of 2, adding"
-                      "extra qubits to comply.")
-        np.ceil(n)
+    # check if m should be ceiled.
     if not m.is_integer():
         warnings.warn("Number of training states not a positive power of 2,"
-                      "adding extra qubits to comply.")
-        np.ceil(m)
+                      "adding extra qubit to comply.")
+        m = np.ceil(m)
 
+    # create quantum registers
     r_train = qk.QuantumRegister(n, name='train_states')
     r_comp_basis = qk.QuantumRegister(m, name='comp_basis')
 
@@ -75,7 +74,7 @@ def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
     #  samples)
     controlled_inits = [qcirc.ControlledGate] * train_shape[0]
 
-    # initialize the circuit
+    # create an empty circuit with the registers
     oracle_circ = qk.QuantumCircuit(
         r_train,
         r_comp_basis,
@@ -93,15 +92,15 @@ def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
             )
 
     # apply all the x-gates and controlled inits to the circuit
+    # define the length of the binary string which will translate |i>
     bin_number_length = r_comp_basis.size
     # "kick start" the loop by defining the first "previous" number
     prev_bin_array = np.ones(bin_number_length, dtype=int)
 
-    x_location_values = np.arange(r_comp_basis.size) + 1
     for i, c_init in enumerate(controlled_inits):
         # represent i in binary number with length bin_number_length, so
         #  leading zeros are included
-        binary_string = "{1:0{0:d}b}".format(bin_number_length, i)
+        binary_string = np.binary_repr(i, width=bin_number_length)
         logger.debug(f"State i = {i} represented as string {binary_string}.")
 
         # convert binary string to array
