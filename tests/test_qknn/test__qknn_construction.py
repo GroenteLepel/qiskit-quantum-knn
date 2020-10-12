@@ -2,17 +2,12 @@ import os, logging
 
 from qiskit import QuantumRegister
 
-
 from qiskit_quantum_knn.qknn._qknn_construction import create_oracle
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 def test_create_oracle(caplog):
-    logger = logging.getLogger('__name__')
-    print(os.getcwd())
-    logger.error("test")
-    create_oracle(
+    caplog.set_level(logging.DEBUG)
+    oracle = create_oracle(
         r_train=QuantumRegister(2),
         r_comp_basis=QuantumRegister(2),
         train_data=
@@ -21,3 +16,7 @@ def test_create_oracle(caplog):
             [0, 1, 0, 0]
         ]
     )
+
+    assert len(oracle.definition.qubits) == 4, \
+        "train and computational basis registers of len 2 have not made an " \
+        "oracle of len 4. "
