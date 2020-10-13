@@ -37,6 +37,7 @@ def test_create_oracle_2_training_states(caplog):
         "made an oracle with 3 qubits."
 
 
+@pytest.mark.filterwarnings("ignore:Number of training states")
 def test_create_oracle_uneven_train_states(caplog):
     caplog.set_level(logging.DEBUG)
     oracle = create_oracle(
