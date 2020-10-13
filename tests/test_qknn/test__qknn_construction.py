@@ -63,3 +63,7 @@ def test_create_oracle_uneven_dim(caplog):
                 [1, 0, 0]
             ]
         )
+
+
+def test_where_to_apply_x():
+    assert where_to_apply_x(2) == [[0, 1], [0], [0, 1], [0]]

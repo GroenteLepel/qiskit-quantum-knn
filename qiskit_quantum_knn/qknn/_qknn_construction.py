@@ -94,32 +94,42 @@ def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
     # apply all the x-gates and controlled inits to the circuit
     # define the length of the binary string which will translate |i>
     bin_number_length = r_comp_basis.size
-    # "kick start" the loop by defining the first "previous" number
-    prev_bin_array = np.ones(bin_number_length, dtype=int)
+    where_x = where_to_apply_x(bin_number_length)
 
-    for i, c_init in enumerate(controlled_inits):
+    for i, (c_init, x_idx) in enumerate(zip(controlled_inits, where_x)):
         # represent i in binary number with length bin_number_length, so
         #  leading zeros are included
-        binary_string = np.binary_repr(i, width=bin_number_length)
-        logger.debug(f"State i = {i} represented as string {binary_string}.")
-
-        # convert binary string to array
-        curr_bin_array = np.array(list(binary_string), dtype=int)
-        # determine where to put x-gates via logical xor in the binary values
-        indices = np.logical_xor(prev_bin_array, curr_bin_array)
-        where_to_apply_x = np.arange(bin_number_length)[indices].tolist()
-        logger.debug(f"applying x-gates to: {where_to_apply_x}")
+        logger.debug(f"applying x-gates to: {x_idx}")
         # apply the x-gates
-        oracle_circ.x(r_comp_basis[where_to_apply_x])
+        oracle_circ.x(r_comp_basis[x_idx])
         # apply the controlled init
         oracle_circ.append(c_init, r_comp_basis[:] + r_train[:])
-
-        # update the binary value for the next loop
-        prev_bin_array = curr_bin_array
 
     logger.debug(f"Created oracle as:\n{oracle_circ.draw()}")
 
     return oracle_circ.to_instruction()
+
+
+def where_to_apply_x(bin_number_length: int) -> List:
+    """Returns the indices on where to apply X-gates on a quantum register with
+    n qubits to generate all possible binary numbers on that register.
+
+    Args:
+        bin_number_length (int): the length of the highest binary value (or
+            the number of qubits).
+    Returns:
+        List: length 2**bin_number_length of the indices of the qubits where
+            the X-gate must be applied to.
+    """
+    powers_of_two = 2 ** np.arange(bin_number_length)
+    indices = \
+        [
+            [
+                ind for ind, v in enumerate(powers_of_two)
+                if v & (pos ^ (pos - 1)) == v
+            ] for pos in range(2 ** bin_number_length)
+        ]
+    return indices
 
 
 def construct_circuit(state_to_classify: np.ndarray,
