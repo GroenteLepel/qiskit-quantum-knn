@@ -10,9 +10,9 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('exts'))
 
 
 # -- Project information -----------------------------------------------------
@@ -24,7 +24,6 @@ author = 'Daniël Kok'
 # The full version, including alpha/beta/rc tags
 release = 'v1.0.0'
 
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -34,10 +33,13 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
+    'sphinx.ext.mathjax',
     'sphinx.ext.viewcode'
 ]
 
-napoleon_google_docstring = False
+mathjax_path = 'https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
+
+napoleon_google_docstring = True
 napoleon_use_param = False
 napoleon_use_ivar = True
 
