@@ -11,22 +11,34 @@ import qiskit_quantum_knn.qknn.quantumgates as gates
 
 logger = logging.getLogger(__name__)
 
-"""Construction of a qknn QuantumCircuit."""
+"""Construction of a QkNN QuantumCircuit."""
 
 
 def create_qknn(state_to_classify: Union[List, np.ndarray],
                 classified_states: Union[List, np.ndarray],
                 add_measurement: bool = False) -> qk.QuantumCircuit:
-    """ Construct one QKNN QuantumCircuit.
+    """ Construct one QkNN QuantumCircuit.
+
+            This method creates a circuit to perform distance measurements
+            using quantum fidelity as distance metric `(Basheer et al. 2020)
+            <https://arxiv.org/abs/2003.09187>`_. It initialises one register
+            with a state to classify, and uses an Oracle to act as QRAM to
+            hold the training data. This Oracle writes all training data in
+            superposition to a register. After that, a swap-test circuit
+            `(Buhrman et al. 2001) <https://arxiv.org/abs/quant-ph/0102001>`_
+            is created to perform the fidelity measurement.
+
             Args:
                 state_to_classify (numpy.ndarray): array of dimension N complex
                     values describing the state to classify via KNN.
-                classified_states (numpy.ndarray): array containing M training samples
-                    of dimension N.
+                classified_states (numpy.ndarray): array containing M training
+                    samples of dimension N.
                 add_measurement (bool): controls if measurements must be added
                     to the classical registers.
+
             Returns:
                 QuantumCircuit: the constructed circuit.
+
     """
     oracle = create_oracle(classified_states)
     return construct_circuit(
