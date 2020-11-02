@@ -19,25 +19,42 @@ def create_qknn(state_to_classify: Union[List, np.ndarray],
                 add_measurement: bool = False) -> qk.QuantumCircuit:
     """ Construct one QkNN QuantumCircuit.
 
-            This method creates a circuit to perform distance measurements
-            using quantum fidelity as distance metric `(Basheer et al. 2020)
-            <https://arxiv.org/abs/2003.09187>`_. It initialises one register
-            with a state to classify, and uses an Oracle to act as QRAM to
-            hold the training data. This Oracle writes all training data in
-            superposition to a register. After that, a swap-test circuit
-            `(Buhrman et al. 2001) <https://arxiv.org/abs/quant-ph/0102001>`_
-            is created to perform the fidelity measurement.
+        This method creates a circuit to perform distance measurements
+        using quantum fidelity as distance metric `(Basheer et al. 2020)
+        <https://arxiv.org/abs/2003.09187>`_. It initialises one register
+        with a state to classify, and uses an Oracle to act as QRAM to
+        hold the training data. This Oracle writes all training data in
+        superposition to a register. After that, a swap-test circuit
+        `(Buhrman et al. 2001) <https://arxiv.org/abs/quant-ph/0102001>`_
+        is created to perform the fidelity measurement.
 
-            Args:
-                state_to_classify (numpy.ndarray): array of dimension N complex
-                    values describing the state to classify via KNN.
-                classified_states (numpy.ndarray): array containing M training
-                    samples of dimension N.
-                add_measurement (bool): controls if measurements must be added
-                    to the classical registers.
+        Example:
+            Creating a circuit with simple data.
 
-            Returns:
-                QuantumCircuit: the constructed circuit.
+            .. jupyter-execute::
+
+                from qiskit_quantum_knn.qknn.qknn_construction import create_qknn
+
+                test_data = [1, 0]
+
+                train_data = [
+                    [1, 0],
+                    [1, 0]
+                ]
+
+                circuit = create_qknn(test_data, train_data, add_measurement=True)
+                print(circuit.draw())
+
+        Args:
+            state_to_classify (numpy.ndarray): array of dimension N complex
+                values describing the state to classify via KNN.
+            classified_states (numpy.ndarray): array containing M training
+                samples of dimension N.
+            add_measurement (bool): controls if measurements must be added
+                to the classical registers.
+
+        Returns:
+            QuantumCircuit: the constructed circuit.
 
     """
     oracle = create_oracle(classified_states)
@@ -57,9 +74,10 @@ def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
 
         .. math:: \mathcal{W}|i\rangle |0\rangle = |i\rangle |\phi_i\rangle
 
-    where the equation number refers to that of Afham; Basheer, Afrad; Goyal,
-    Sandeep K. (2020). Creates oracle to bring qubit into desired state |phi>
-    as Instruction, this can be appended to the desired circuit.
+    where the equation number refers to that of (Basheer et al.
+    2020)<https://arxiv.org/abs/2003.09187>`_. Creates oracle to bring qubit
+    into desired state |phi> as Instruction, this can be appended to the
+    desired circuit.
 
     Args:
         train_data (array-like): List of vectors with dimension len(r_train) to
@@ -154,21 +172,25 @@ def where_to_apply_x(bin_number_length: int) -> List:
 def construct_circuit(state_to_classify: np.ndarray,
                       oracle: qinst.Instruction,
                       add_measurement: bool) -> qk.QuantumCircuit:
-    """Setup for a qknn QuantumCircuit.
+    r"""Setup for a qknn QuantumCircuit.
+
     Constructs the qknn QuantumCircuit according to the stepwise "instructions"
-    in Afham; Basheer, Afrad; Goyal, Sandeep K. (2020).
+    in (Basheer et al. 2020)<https://arxiv.org/abs/2003.09187>`_.
+
     Args:
         state_to_classify (numpy.ndarray): array of dimension N complex
             values describing the state to classify via KNN.
-        training_data (numpy.ndarray): array containing M training samples
-            of dimension N.
-        oracle (qiskit Instruction): oracle W|i>|0> = W|i>|phi_i> for applying
+        oracle (qiskit Instruction): oracle :math:`\mathcal{W}` for applying
             training data.
         add_measurement (bool): controls if measurements must be added
             to the classical registers.
+
     Raises:
-        ValueError: If the length of the vectors in the classified_states and/or
-        test data are not a positive power of 2.
+        ValueError: If the number of data points in :attr:`state_to_classify`
+            is more than 2.
+        ValueError: If the length of the vectors in the :attr:`classified_states`
+            and/or test data are not a positive power of 2.
+
     Returns:
         QuantumCircuit: constructed circuit.
     """
