@@ -195,10 +195,10 @@ def construct_circuit(state_to_classify: np.ndarray,
         QuantumCircuit: constructed circuit.
     """
 
-    if len(state_to_classify.shape) != 1:
+    if len(np.array(state_to_classify).shape) != 1:
         raise ValueError(
             f"Please only one data point to classify. Number of data points "
-            f"provided is: {state_to_classify.shape[0]}. "
+            f"provided is: {np.array(state_to_classify).shape[0]}. "
         )
 
     # get the dimensions of the state to classify
