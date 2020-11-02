@@ -26,7 +26,7 @@ OptionalQInstance = Optional[UnionQInstBaseB]
 
 
 class QKNeighborsClassifier(QuantumAlgorithm):
-    """Quantum KNN algorithm.
+    """ Quantum KNN algorithm.
 
     Maintains the construction of a QkNN Quantumcircuit, and manages the data
     corresponding with this circuit by setting up training and test data and
@@ -57,7 +57,9 @@ class QKNeighborsClassifier(QuantumAlgorithm):
 
     Example:
 
-        Classify data::
+        Classify data using the Iris dataset.
+
+        .. jupyter-execute::
 
             from qiskit_quantum_knn.qknn import QKNeighborsClassifier
             from qiskit_quantum_knn.encoding import analog
@@ -75,9 +77,9 @@ class QKNeighborsClassifier(QuantumAlgorithm):
                quantum_instance=instance
             )
 
-            n_variables = 4         # should be positive power of 2
-            n_train_points = 16     # can be any positive integer
-            n_test_points = 8      # can be any positive integer
+            n_variables = 2        # should be positive power of 2
+            n_train_points = 4     # can be any positive integer
+            n_test_points = 2      # can be any positive integer
 
             # use iris dataset
             iris = datasets.load_iris()
@@ -85,16 +87,21 @@ class QKNeighborsClassifier(QuantumAlgorithm):
             data_raw = iris.data
 
             # encode data
-            encoded_data = analog.encode(data_raw)
+            encoded_data = analog.encode(data_raw[:, :n_variables])
 
             # now pick these indices from the data
-            train_data = encoded_data[:n_train_points, :n_variables]
+            train_data = encoded_data[:n_train_points]
             train_labels = labels[:n_train_points]
-            test_data = encoded_data[n_train_points:(n_train_points+n_test_points), :n_variables]
 
-            # predict
+            test_data = encoded_data[n_train_points:(n_train_points+n_test_points), :n_variables]
+            test_labels = labels[n_train_points:(n_train_points+n_test_points)]
+
             qknn.fit(train_data, train_labels)
             qknn_prediction = qknn.predict(test_data)
+
+            print(qknn_prediction)
+            print(test_labels)
+
     """
 
     def __init__(self, n_neighbors: int = 3,
