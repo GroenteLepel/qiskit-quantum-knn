@@ -38,17 +38,24 @@ def create_qknn(state_to_classify: Union[List, np.ndarray],
 
 # noinspection PyTypeChecker
 def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
-    """
-    Creates an oracle to perform as:
-        W |0>|basis_state> = |phi>|basis_state>,     (14)
+    r"""Create an Oracle to perform as QRAM.
+
+    Notes:
+        Creates an oracle to perform as\:
+
+        .. math:: \mathcal{W}|i\rangle |0\rangle = |i\rangle |\phi_i\rangle
+
     where the equation number refers to that of Afham; Basheer, Afrad; Goyal,
     Sandeep K. (2020). Creates oracle to bring qubit into desired state |phi>
     as Instruction, this can be appended to the desired circuit.
+
     Args:
-        train_data (List or ndarray): List of vectors with dimension len(r_train) to
-                           initialize r_train to.
+        train_data (array-like): List of vectors with dimension len(r_train) to
+            initialize r_train to.
+
     Returns:
         circuit.instruction.Instruction: Instruction of the Oracle.
+
     """
     # get shape of training data
     train_shape = np.shape(train_data)

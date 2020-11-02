@@ -40,6 +40,7 @@ extensions = [
 mathjax_path = 'https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
 
 napoleon_google_docstring = True
+napoleon_include_private_with_doc = True
 napoleon_use_param = False
 napoleon_use_ivar = True
 
