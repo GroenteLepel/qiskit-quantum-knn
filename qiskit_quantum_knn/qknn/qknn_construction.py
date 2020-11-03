@@ -1,3 +1,5 @@
+"""Construction of a QkNN QuantumCircuit."""
+
 import logging, warnings
 from typing import List, Union
 
@@ -10,8 +12,6 @@ import qiskit.circuit.instruction as qinst
 import qiskit_quantum_knn.qknn.quantumgates as gates
 
 logger = logging.getLogger(__name__)
-
-"""Construction of a QkNN QuantumCircuit."""
 
 
 def create_qknn(state_to_classify: Union[List, np.ndarray],
@@ -39,7 +39,7 @@ def create_qknn(state_to_classify: Union[List, np.ndarray],
 
             train_data = [
                 [1, 0],
-                [1, 0]
+                [0, 1]
             ]
 
             circuit = create_qknn(test_data, train_data, add_measurement=True)
@@ -74,8 +74,8 @@ def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
 
         .. math:: \mathcal{W}|i\rangle |0\rangle = |i\rangle |\phi_i\rangle
 
-    where the equation number refers to that of (Basheer et al.
-    2020)<https://arxiv.org/abs/2003.09187>`_. Creates oracle to bring qubit
+    where the equation number refers to that of :xref:`basheer2020`.
+    Creates oracle to bring qubit
     into desired state |phi> as Instruction, this can be appended to the
     desired circuit.
 
@@ -172,10 +172,10 @@ def where_to_apply_x(bin_number_length: int) -> List:
 def construct_circuit(state_to_classify: np.ndarray,
                       oracle: qinst.Instruction,
                       add_measurement: bool) -> qk.QuantumCircuit:
-    r"""Setup for a qknn QuantumCircuit.
+    r"""Setup for a QkNN QuantumCircuit.
 
-    Constructs the qknn QuantumCircuit according to the stepwise "instructions"
-    in (Basheer et al. 2020)<https://arxiv.org/abs/2003.09187>`_.
+    Constructs the QkNN QuantumCircuit according to the stepwise "instructions"
+    in `(Basheer et al. 2020)<https://arxiv.org/abs/2003.09187>`_.
 
     Args:
         state_to_classify (numpy.ndarray): array of dimension N complex
@@ -188,8 +188,9 @@ def construct_circuit(state_to_classify: np.ndarray,
     Raises:
         ValueError: If the number of data points in :attr:`state_to_classify`
             is more than 2.
-        ValueError: If the length of the vectors in the :attr:`classified_states`
-            and/or test data are not a positive power of 2.
+        ValueError: If the length of the vectors in the
+            :attr:`classified_states` and/or test data are not a positive
+            power of 2.
 
     Returns:
         QuantumCircuit: constructed circuit.
@@ -233,19 +234,23 @@ def initialise_qknn(log2_dim: int,
                     log2_n_samps: int,
                     test_state: np.ndarray) -> qk.QuantumCircuit:
     """
-    Coincides with Step 1: the "initialisation" section in Afham;
-    Basheer, Afrad; Goyal, Sandeep K. (2020). Initialises a QuantumCircuit
-    with 1 + 2n + m qubits (n: log2_dimension, m: log2_samples)
-    for a qknn network, where qubits 1 till n are initialised in some state
-    psi (state_to_classify).
+
+    Coincides with Step 1: the "initialisation" section in `(Basheer et al.
+    2020)<https://arxiv.org/abs/2003.09187>`_ . Initialises a QuantumCircuit
+    with 1 + 2n + m qubits (n: log2_dimension, m: log2_samples) for a QkNN
+    network, where qubits 1 till n are initialised in some state psi (
+    state_to_classify).
+
     Args:
-        log2_dim (int): int, log2 value of the dimension of the test and
-            train states.
-        log2_n_samps (int): int, log2 value of the number of training samples M.
+        log2_dim (int): int, log2 value of the
+            dimension of the test and train states.
+        log2_n_samps (int): int,
+            log2 value of the number of training samples M.
         test_state (numpy.ndarray): 2 ** log2_dimension complex values to
             initialise the r_1 test state in (psi).
+
     Returns:
-        QuantumCircuit: initialised circuit.
+        QuantumCircuit: The initialised circuit.
     """
     if len(test_state) != 2 ** log2_dim:
         raise ValueError(
@@ -282,9 +287,11 @@ def initialise_qknn(log2_dim: int,
 def state_transformation(qknn_circ: qk.QuantumCircuit,
                          oracle: qinst.Instruction) -> qk.QuantumCircuit:
     """
-    Coincides with Step 2: the "state transformation" section from Afham;
-    Basheer, Afrad; Goyal, Sandeep K. (2020). Applies Hadamard gates and
+
+    Coincides with Step 2: the "state transformation" section from `(Basheer et
+    al. 2020)<https://arxiv.org/abs/2003.09187>`_. Applies Hadamard gates and
     Quantum Oracle to bring r_1, r_2, r_3 and r_4 in the desired states.
+
     Args:
         qknn_circ (QuantumCircuit): has been initialised according to
             initialise_qknn().
@@ -322,7 +329,7 @@ def state_transformation(qknn_circ: qk.QuantumCircuit,
 
 def add_measurements(qknn_circ: qk.QuantumCircuit) -> qk.QuantumCircuit:
     """
-    Performs the third and final step of the building of the qknn circuit by
+    Performs the third and final step of the building of the QkNN circuit by
     adding measurements to the control qubit and the computational basis.
     Args:
         qknn_circ (qk.QuantumCircuit): has been build up by first applying

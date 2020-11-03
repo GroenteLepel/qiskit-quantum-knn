@@ -13,7 +13,9 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('exts'))
-
+sys.path.append('.')
+from links.link import *
+from links import *
 
 # -- Project information -----------------------------------------------------
 
@@ -32,11 +34,14 @@ release = 'v1.0.0'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
+    'sphinx.ext.extlinks',
     'sphinx.ext.napoleon',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'jupyter_sphinx'
 ]
+
+autodoc_member_order = 'bysource'
 
 mathjax_path = 'https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML'
 
