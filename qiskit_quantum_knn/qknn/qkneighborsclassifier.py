@@ -157,8 +157,8 @@ class QKNeighborsClassifier(QuantumAlgorithm):
                           add_measurement: bool = False) -> qk.QuantumCircuit:
         r"""Construct one QkNN QuantumCircuit.
 
-        The Oracle provided is mentioned in Afham et al. (2020) as the parameter
-        :math:`\mathcal{W}`, and is created via the method
+        The Oracle provided is mentioned in :afham2020:`Afham et al. (2020)`
+        as the parameter :math:`\mathcal{W}`, and is created via the method
         :py:func:`~qiskit_quantum_knn.qknn.qknn_construction.create_oracle`.
 
         Args:
@@ -288,7 +288,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
 
         Calculates contrasts :math:`q(i)` for each training state ``i`` in the
         computational basis of the KNN QuantumCircuit. The contrasts
-        are according to Basheer et al. (2020) http://arxiv.org/abs/2003.09187.
+        are according to :afham2020:`Afham et al. (2020)`.
 
         .. math::
 

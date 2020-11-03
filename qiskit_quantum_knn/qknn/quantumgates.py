@@ -13,12 +13,19 @@ and Qiskit.
 
 
 def swap():
-    """
-    Self-written decomposed version of swap gate:
-    q_1: ───X─
-            │
-    q_2: ───X─
-    :return: instruction of this gate
+    """A self-written decomposition of the SWAP-gate.
+
+    Example:
+        .. jupyter-execute::
+
+            from qiskit_quantum_knn.qknn.quantumgates import swap
+
+            swap_circ = swap()
+            print(swap_circ.definition.draw())
+
+    Returns:
+        Instruction: the SWAP-gate.
+
     """
     swap_circuit = qk.QuantumCircuit(2, name='swap_gate')
     swap_circuit.cx(0, 1)
@@ -28,17 +35,23 @@ def swap():
 
 
 def fidelity_instruction():
-    """
-    Fidelity is P(0) - P(1)
-         ┌───┐   ┌───┐┌─┐
-    q_0: ┤ H ├─■─┤ H ├┤M├
-         └───┘ │ └───┘└╥┘
-    q_1: ──────X───────╫─
-               │       ║
-    q_2: ──────X───────╫─
-                       ║
-    c_0: ══════════════╩═
-    :return: instruction of the gate
+    r"""A decomposition of the SWAP-measurement.
+
+    The fidelity between the state on ``q_1`` and the state on ``q_2``
+    is defined as:
+
+     .. math:: \mathbb{P}(q_0 = 0) - \mathbb{P}(q_0 = 1)
+
+    Example:
+        .. jupyter-execute::
+
+            from qiskit_quantum_knn.qknn.quantumgates import fidelity_instruction
+
+            fid_inst = fidelity_instruction()
+            print(fid_inst.definition.draw())
+
+    Returns:
+        Instruction: The Fidelity gate (swap measurement).
     """
     fidelity_circ = qk.QuantumCircuit(3, 1)
     fidelity_circ.h(0)
@@ -54,17 +67,21 @@ def fidelity_instruction():
 def init_to_state(reg_to_init: qk.QuantumRegister,
                   init_state: np.ndarray,
                   name: Optional[str] = None) -> Gate:
-    """Initialize a regester to provided state.
+    """Initialize a :class:`QuantumRegister` to the provided state.
+
     Args:
         reg_to_init (QuantumRegister): register which needs to be initialized.
-        init_state (np.ndarray): state to which the reg_to_init must be
-            initialized to.
-        name (str): optional, name for the init_gate.
+        init_state (np.ndarray): state to which the :py:attr:`reg_to_init`
+            must be initialized to.
+        name (str): optional, name for the ``init_gate``.
     Raises:
         ValueError: if the register and state do not have the same dimension.
 
     Returns:
-        Gate: gate of size reg_to_init.size which performs the initialization.
+        Gate: The initialiser.
+
+            A gate of size ``reg_to_init.size`` which performs the
+            initialization.
     """
     # check if provided values are correct
     if len(init_state) != 2 ** len(reg_to_init):
@@ -92,15 +109,22 @@ def controlled_initialize(reg_to_init: qk.QuantumRegister,
                           num_ctrl_qubits: Optional[int] = 1,
                           name: Optional[str] = None) -> ControlledGate:
     """Initialize a register to provided state with control.
+
+    This method uses :py:func:`init_to_state` to create the initialiser.
+
     Args:
         reg_to_init (QuantumRegister): register which needs to be initialized.
-        init_state (np.ndarray): state to which the reg_to_init must be
+        init_state (np.ndarray): state to which the ``reg_to_init`` must be
             initialized to.
         num_ctrl_qubits (int): optional, number of desired controls.
-        name (str): optional, name for the init_gate.
+        name (str): optional, name for the ``init_gate``.
+
     Returns:
-        ControlledGate: gate of size reg_to_init.size + num_ctrl_qubits which
+        ControlledGate: The produced controlled initialise.
+
+            A Gate of size ``reg_to_init.size + num_ctrl_qubits`` which
             performs the initialize with control.
+
     """
     # create the init state
     init_gate = init_to_state(reg_to_init, init_state, name)

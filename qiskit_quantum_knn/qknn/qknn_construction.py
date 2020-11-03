@@ -20,13 +20,13 @@ def create_qknn(state_to_classify: Union[List, np.ndarray],
     """ Construct one QkNN QuantumCircuit.
 
     This method creates a circuit to perform distance measurements
-    using quantum fidelity as distance metric `(Basheer et al. 2020)
-    <https://arxiv.org/abs/2003.09187>`_. It initialises one register
+    using quantum fidelity as distance metric :afham2020:`Afham et al.
+    (2020)`. It initialises one register
     with a state to classify, and uses an Oracle to act as QRAM to
     hold the training data. This Oracle writes all training data in
     superposition to a register. After that, a swap-test circuit
-    `(Buhrman et al. 2001) <https://arxiv.org/abs/quant-ph/0102001>`_
-    is created to perform the fidelity measurement.
+    :buhrman2020:`Buhrman et al. (2020)` is created to perform the fidelity
+    measurement.
 
     Example:
         Creating a circuit with simple data.
@@ -65,23 +65,126 @@ def create_qknn(state_to_classify: Union[List, np.ndarray],
     )
 
 
+def construct_circuit(state_to_classify: np.ndarray,
+                      oracle: qinst.Instruction,
+                      add_measurement: bool) -> qk.QuantumCircuit:
+    r"""Setup for a QkNN QuantumCircuit.
+
+    Constructs the QkNN QuantumCircuit according to the stepwise "instructions"
+    in :afham2020:`Afham et al. (2020)`. These instructions are\:
+
+    1. Initialisation:
+        creates the registers and applies the unclassified
+        datum :math:`\psi` (see :py:func:`initialise_qknn`);
+    2. State transformation:
+        applies :math:`H`-gates and the Oracle
+        :math:`\mathcal{W}` to the circuit, and applies the
+        :math:`SWAP`-test (see :py:func:`state_transformation`);
+    3. Adding measurments:
+        add the measurement gates to the control and
+        computational basis (see :py:func:`add_measurements`).
+
+    Args:
+        state_to_classify (numpy.ndarray): array of dimension N complex
+            values describing the state to classify via KNN.
+        oracle (qiskit Instruction): oracle :math:`\mathcal{W}` for applying
+            training data.
+        add_measurement (bool): controls if measurements must be added
+            to the classical registers.
+
+    Raises:
+        ValueError: If the number of data points in :attr:`state_to_classify`
+            is more than 2.
+        ValueError: If the length of the vectors in the
+            :attr:`classified_states` and/or test data are not a positive
+            power of 2.
+
+    Returns:
+        QuantumCircuit: constructed circuit.
+    """
+
+    if len(np.array(state_to_classify).shape) != 1:
+        raise ValueError(
+            f"Please only one data point to classify. Number of data points "
+            f"provided is: {np.array(state_to_classify).shape[0]}. "
+        )
+
+    # get the dimensions of the state to classify
+    state_dimension = len(state_to_classify)
+
+    # get the number of qubits for the registers containing the state to
+    #  classify and the number of train samples
+    n = np.log2(state_dimension)  # n qubits for describing states
+    m = oracle.num_qubits - n  # n qubits for computational basis
+
+    # Check if param is a power of 2
+    if (n == 0 or not n.is_integer()) and (m == 0 or not m.is_integer()):
+        raise ValueError(
+            "Desired statevector length not a positive power of 2."
+        )
+
+    # step 1: initialise (creates registers, sets qubits to |0> or the
+    #  state to classify
+    qknn_circ = initialise_qknn(n, m, state_to_classify)
+    # step 2: state trans. (applies oracle)
+    qknn_circ = state_transformation(qknn_circ, oracle)
+    # step 3: adds the measurement gates
+    if add_measurement:
+        qknn_circ = add_measurements(qknn_circ)
+
+    logger.debug(f"Final circuit:\n{qknn_circ.draw(fold=90)}")
+
+    return qknn_circ
+
+
 # noinspection PyTypeChecker
 def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
     r"""Create an Oracle to perform as QRAM.
 
+
+    The oracle works as follows\:
+
+    .. math:: \mathcal{W}|i\rangle |0\rangle = |i\rangle |\phi_i\rangle
+
+    where the equation is from :afham2020:`Afham et al. (2020)`. This oracle
+    acts as QRAM, which holds the training dataset :math:`\Phi` to assign to
+    the register for performing a swap test. It is located in the center of
+    the quantum circuit (see :py:func:`create_qknn`).
+
     Notes:
-        Creates an oracle to perform as\:
+        The Oracle works with controlled initializers which check the
+        state of the computational basis. The computational basis is described
+        by :math:`|i\rangle`, where :math:`i` is any real number, which is then
+        described by qubits in binary.
 
-        .. math:: \mathcal{W}|i\rangle |0\rangle = |i\rangle |\phi_i\rangle
+        To check the the state of the computational basis, a network of
+        :math:`X`-gates is created to bring the computational basis
+        systematically into all possible states. If all qubits in the register
+        are :math:`|1\rangle`, the datum is assigned via the initialize. Where
+        to apply the :math:`X`-gates is determined by
+        :py:func:`where_to_apply_x`.
 
-    where the equation number refers to that of :xref:`basheer2020`.
-    Creates oracle to bring qubit
-    into desired state |phi> as Instruction, this can be appended to the
-    desired circuit.
+    Example:
+        Creating a simple oracle for dataset with 4 points.
+
+        .. jupyter-execute::
+
+               from qiskit_quantum_knn.qknn.qknn_construction import create_oracle
+
+               train_data = [
+                    [1, 0],
+                    [1, 0],
+                    [0, 1],
+                    [0, 1]
+               ]
+
+               oracle = create_oracle(train_data)
+
+               print(oracle.definition.draw())
 
     Args:
-        train_data (array-like): List of vectors with dimension len(r_train) to
-            initialize r_train to.
+        train_data (array-like): List of vectors with dimension
+            ``len(r_train)`` to initialize ``r_train`` to.
 
     Returns:
         circuit.instruction.Instruction: Instruction of the Oracle.
@@ -148,15 +251,52 @@ def create_oracle(train_data: Union[List, np.ndarray]) -> qinst.Instruction:
 
 
 def where_to_apply_x(bin_number_length: int) -> List:
-    """Returns the indices on where to apply X-gates on a quantum register with
-    n qubits to generate all possible binary numbers on that register.
+    r""" Create an array to apply :math:`X`-gates systematically to create all
+    possible register combinations.
+
+    This method returns the indices on where to apply :math:`X`-gates on a
+    quantum register with ``n`` qubits to generate all possible binary numbers
+    on that register.
+
+    Example:
+        Suppose we have a register with 2 qubits. We want to make sure we check
+        all possible states this register can be in, such that a data point
+        can be assigned. A register with 2 qubits can be in 4 states:
+
+        .. math::
+
+            |0\rangle = |00\rangle, |1\rangle = |01\rangle,
+            |2\rangle = |10\rangle, |3\rangle = |11\rangle
+
+        So to apply :math:`\phi_1`, the register must be in state
+        :math:`|01\rangle`, and we need to apply the :math:`X`-gate only to the
+        first qubit. The state becomes :math:`|11\rangle` and the controlled
+        initialise will trigger.
+
+        Because the algorithm will check for all states in succession, this can
+        be reduced to prevent double placements of :math:`X`-gates, and it
+        determines where to place the :math:`X`-gates via:
+
+        .. math:: |i-1\rangle XOR |i\rangle
+
+        A full list of all these configurations is created by this method\:
+
+        .. jupyter-execute::
+
+            from qiskit_quantum_knn.qknn.qknn_construction import where_to_apply_x
+
+            num_qubits = 2
+            where_to_apply_x(num_qubits)
 
     Args:
         bin_number_length (int): the length of the highest binary value (or
             the number of qubits).
+
     Returns:
-        List: length 2**bin_number_length of the indices of the qubits where
-            the X-gate must be applied to.
+        List: All possible combinations.
+
+            A length ``2**bin_number_length`` of the indices of the qubits where
+            the :math:`X`-gate must be applied to.
     """
     powers_of_two = 2 ** np.arange(bin_number_length)
     indices = \
@@ -169,77 +309,30 @@ def where_to_apply_x(bin_number_length: int) -> List:
     return indices
 
 
-def construct_circuit(state_to_classify: np.ndarray,
-                      oracle: qinst.Instruction,
-                      add_measurement: bool) -> qk.QuantumCircuit:
-    r"""Setup for a QkNN QuantumCircuit.
-
-    Constructs the QkNN QuantumCircuit according to the stepwise "instructions"
-    in `(Basheer et al. 2020)<https://arxiv.org/abs/2003.09187>`_.
-
-    Args:
-        state_to_classify (numpy.ndarray): array of dimension N complex
-            values describing the state to classify via KNN.
-        oracle (qiskit Instruction): oracle :math:`\mathcal{W}` for applying
-            training data.
-        add_measurement (bool): controls if measurements must be added
-            to the classical registers.
-
-    Raises:
-        ValueError: If the number of data points in :attr:`state_to_classify`
-            is more than 2.
-        ValueError: If the length of the vectors in the
-            :attr:`classified_states` and/or test data are not a positive
-            power of 2.
-
-    Returns:
-        QuantumCircuit: constructed circuit.
-    """
-
-    if len(np.array(state_to_classify).shape) != 1:
-        raise ValueError(
-            f"Please only one data point to classify. Number of data points "
-            f"provided is: {np.array(state_to_classify).shape[0]}. "
-        )
-
-    # get the dimensions of the state to classify
-    state_dimension = len(state_to_classify)
-
-    # get the number of qubits for the registers containing the state to
-    #  classify and the number of train samples
-    n = np.log2(state_dimension)  # n qubits for describing states
-    m = oracle.num_qubits - n  # n qubits for computational basis
-
-    # Check if param is a power of 2
-    if (n == 0 or not n.is_integer()) and (m == 0 or not m.is_integer()):
-        raise ValueError(
-            "Desired statevector length not a positive power of 2."
-        )
-
-    # step 1: initialise (creates registers, sets qubits to |0> or the
-    #  state to classify
-    qknn_circ = initialise_qknn(n, m, state_to_classify)
-    # step 2: state trans. (applies oracle)
-    qknn_circ = state_transformation(qknn_circ, oracle)
-    # step 3: adds the measurement gates
-    if add_measurement:
-        qknn_circ = add_measurements(qknn_circ)
-
-    logger.debug(f"Final circuit:\n{qknn_circ.draw(fold=90)}")
-
-    return qknn_circ
-
-
 def initialise_qknn(log2_dim: int,
                     log2_n_samps: int,
                     test_state: np.ndarray) -> qk.QuantumCircuit:
-    """
+    r"""Creates the registers and applies the unclassified datum :math:`\psi`.
 
-    Coincides with Step 1: the "initialisation" section in `(Basheer et al.
-    2020)<https://arxiv.org/abs/2003.09187>`_ . Initialises a QuantumCircuit
+    Coincides with Step 1: the "initialisation" section in
+    :afham2020:`Afham et al. (2020)`. Initialises a QuantumCircuit
     with 1 + 2n + m qubits (n: log2_dimension, m: log2_samples) for a QkNN
     network, where qubits 1 till n are initialised in some state psi (
     state_to_classify).
+
+    Example:
+        Set up the scaffolds for a QkNN :class:`QuantumCircuit`.
+
+        .. jupyter-execute::
+
+            from qiskit_quantum_knn.qknn.qknn_construction import initialise_qknn
+
+            n_dim_qubits = 1
+            n_samps_qubits = 1
+            test_state = [0, 1]
+
+            init_circ = initialise_qknn(n_dim_qubits, n_samps_qubits, test_state)
+            print(init_circ.draw())
 
     Args:
         log2_dim (int): int, log2 value of the
@@ -286,11 +379,40 @@ def initialise_qknn(log2_dim: int,
 
 def state_transformation(qknn_circ: qk.QuantumCircuit,
                          oracle: qinst.Instruction) -> qk.QuantumCircuit:
-    """
+    """applies :math:`H`-gates and the Oracle :math:`\mathcal{W}` to the
+    circuit, and applies the :math:`SWAP`-test.
 
-    Coincides with Step 2: the "state transformation" section from `(Basheer et
-    al. 2020)<https://arxiv.org/abs/2003.09187>`_. Applies Hadamard gates and
-    Quantum Oracle to bring r_1, r_2, r_3 and r_4 in the desired states.
+    Coincides with Step 2: the "state transformation" section from
+    :afham2020:`Afham et al. (2020)`. Applies Hadamard gates and
+    Quantum Oracle to bring :math:`r_1, r_2, r_3, r_4` in the desired states.
+
+    Note:
+        This needs the :class:`QuantumCircuit` created by
+        :py:func:`initialise_qknn` as a parameter in order to function
+        properly.
+
+    Example:
+        Apply the oracle and test data in a :class:`QuantumCircuit`.
+
+        .. jupyter-execute::
+
+            from qiskit_quantum_knn.qknn.qknn_construction import create_oracle, \
+                initialise_qknn, state_transformation
+
+            n_dim_qubits = 1  # must be log(len(test_state))
+            n_samps_qubits = 1  # must be log(len(train_data))
+
+            test_state = [0, 1]
+            train_data = [
+                [1, 0],
+                [0, 1]
+            ]
+
+            oracle = create_oracle(train_data)
+
+            init_circ = initialise_qknn(n_dim_qubits, n_samps_qubits, test_state)
+            state_circ = state_transformation(init_circ, oracle)
+            print(state_circ.draw())
 
     Args:
         qknn_circ (QuantumCircuit): has been initialised according to
@@ -299,12 +421,13 @@ def state_transformation(qknn_circ: qk.QuantumCircuit,
             training data.
 
     Returns:
-        QuantumCircuit: the QuantumCircuit with state transformation applied.
+        QuantumCircuit: the transformed :class:`QuantumCircuit`.
+
     """
     # initialising registers for readability
     [control, test_register, train_register, comp_basis] = qknn_circ.qregs
 
-    # perform equation 13 from Afham; Basheer, Afrad; Goyal, Sandeep K. (2020).
+    # perform equation 13 from Afham; Afham, Afrad; Goyal, Sandeep K. (2020).
     qknn_circ.h(control)
     qknn_circ.h(comp_basis)
 
@@ -328,15 +451,46 @@ def state_transformation(qknn_circ: qk.QuantumCircuit,
 
 
 def add_measurements(qknn_circ: qk.QuantumCircuit) -> qk.QuantumCircuit:
-    """
+    """Adds measurement gates to the control and computational basis.
+
     Performs the third and final step of the building of the QkNN circuit by
     adding measurements to the control qubit and the computational basis.
+
+    Note:
+        This needs the :class:`QuantumCircuit` created by
+        :py:func:`state_transformation` as a parameter in order to function
+        properly.
+
+    Example:
+
+        .. jupyter-execute::
+
+            from qiskit_quantum_knn.qknn.qknn_construction import create_oracle, \
+                initialise_qknn, state_transformation, add_measurements
+
+            n_dim_qubits = 1  # must be log(len(test_state))
+            n_samps_qubits = 1  # must be log(len(train_data))
+
+            test_state = [0, 1]
+            train_data = [
+                [1, 0],
+                [0, 1]
+            ]
+
+            oracle = create_oracle(train_data)
+
+            init_circ = initialise_qknn(n_dim_qubits, n_samps_qubits, test_state)
+            state_circ = state_transformation(init_circ, oracle)
+            final_circ = add_measurements(state_circ)
+            print(final_circ.draw())
+
     Args:
         qknn_circ (qk.QuantumCircuit): has been build up by first applying
                                        initialise_qknn() and
                                        state_transformation().
+
     Returns:
-        QuantumCircuit: the qknn_circ with measurements applied.
+        QuantumCircuit: the :class:`QuantumCircuit` with measurements applied.
     """
     comp_basis_creg = qknn_circ.cregs[-1]
     comp_basis_qreg = qknn_circ.qregs[-1]
