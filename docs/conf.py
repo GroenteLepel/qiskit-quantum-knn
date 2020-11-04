@@ -14,6 +14,8 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('exts'))
 sys.path.append('.')
+
+# the most commonly used links in the docstrings are here (for extlinks)
 from links import *
 
 # -- Project information -----------------------------------------------------
@@ -51,6 +53,9 @@ napoleon_use_ivar = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+# decide whether module names are prepended to all object names.
+add_module_names = False
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
