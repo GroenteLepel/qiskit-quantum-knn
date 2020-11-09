@@ -5,9 +5,9 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="qiskit_quantum_knn",
-    version="1.0.0",
+    version="1.0.0a1",
     author="Daniël J. Kok",
-    author_email="djonatankok@gmail.com",
+    author_email="djkok.github@icloud.com",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/GroenteLepel/qiskit-quantum-knn",

@@ -17,7 +17,7 @@ from qiskit.aqua.algorithms import QuantumAlgorithm
 import qiskit.circuit.instruction as qinst
 
 from qiskit_quantum_knn.qknn._qknn import _QKNN
-from qiskit_quantum_knn.qknn import _qknn_construction as qc
+from qiskit_quantum_knn.qknn import qknn_construction as qc
 
 logger = logging.getLogger(__name__)
 
@@ -26,19 +26,88 @@ OptionalQInstance = Optional[UnionQInstBaseB]
 
 
 class QKNeighborsClassifier(QuantumAlgorithm):
-    """Quantum KNN algorithm.
+    """ Quantum KNN algorithm.
 
-    A class maintaining:
-     - the construction of a qknn QuantumCircuit;
-     - the management of the data corresponding with this circuit;
-        - setting up test and training data;
-        - maintaining the classes and labels to these classes.
+    Maintains the construction of a QkNN Quantumcircuit, and manages the data
+    corresponding with this circuit by setting up training and test data and
+    maintaining the classes and labels to the data.
+
+    Args:
+        n_neighbors (int): number of neighbors to perform the voting.
+            training_dataset (array-like): data shaped ``(n, d)``, with ``n``
+            the number of data points, and ``d`` the dimensionality.
+            Corresponds to the training data, which is classified and will be
+            used to classify new data. ``d`` must be a positive power of two,
+            ``n`` not per se, because it can be zero-padded to fit on a quantum
+            register.
+        training_labels (array): the labels corresponding to the training data,
+            must be ``len(n)``.
+        test_dataset (array-like): data shaped ``(m, d)``, with ``m`` the
+            the number of data points, and ``d`` the dimensionality. Describes
+            test data which is used to test the algorithm and give an
+            accuracy score.
+
+            TODO: this is not implemented yet, for now a test is performed manually.
+
+        data_points (array-like): data shaped ``(k, d)``, with ``k`` the number
+            of data points, and ``d`` the dimensionality of the data. This is
+            the unlabelled data which  must be classified by the algorithm.
+        quantum_instance (:class: `QuantumInstance` or :class: BaseBackend):
+            the instance which ``qiskit`` will use to run the quantum algorithm.
+
+    Example:
+
+        Classify data using the Iris dataset.
+
+        .. jupyter-execute::
+
+            from qiskit_quantum_knn.qknn import QKNeighborsClassifier
+            from qiskit_quantum_knn.encoding import analog
+            from qiskit import aqua
+            from sklearn import datasets
+            import qiskit as qk
+
+            # initialising the quantum instance
+            backend = qk.BasicAer.get_backend('qasm_simulator')
+            instance = aqua.QuantumInstance(backend, shots=10000)
+
+            # initialising the qknn model
+            qknn = QKNeighborsClassifier(
+               n_neighbors=3,
+               quantum_instance=instance
+            )
+
+            n_variables = 2        # should be positive power of 2
+            n_train_points = 4     # can be any positive integer
+            n_test_points = 2      # can be any positive integer
+
+            # use iris dataset
+            iris = datasets.load_iris()
+            labels = iris.target
+            data_raw = iris.data
+
+            # encode data
+            encoded_data = analog.encode(data_raw[:, :n_variables])
+
+            # now pick these indices from the data
+            train_data = encoded_data[:n_train_points]
+            train_labels = labels[:n_train_points]
+
+            test_data = encoded_data[n_train_points:(n_train_points+n_test_points), :n_variables]
+            test_labels = labels[n_train_points:(n_train_points+n_test_points)]
+
+            qknn.fit(train_data, train_labels)
+            qknn_prediction = qknn.predict(test_data)
+
+            print(qknn_prediction)
+            print(test_labels)
+
     """
 
     def __init__(self, n_neighbors: int = 3,
                  training_dataset: Optional[np.ndarray] = None,
                  training_labels: Optional[np.ndarray] = None,
-                 test_dataset: Optional[Dict[str, np.ndarray]] = None,
+                 test_dataset: Optional[np.ndarray] = None,
                  data_points: Optional[np.ndarray] = None,
                  quantum_instance: OptionalQInstance = None) -> None:
         super().__init__(quantum_instance)
@@ -86,16 +155,22 @@ class QKNeighborsClassifier(QuantumAlgorithm):
     def construct_circuit(state_to_classify: np.ndarray,
                           oracle: qinst.Instruction,
                           add_measurement: bool = False) -> qk.QuantumCircuit:
-        """ Construct one QKNN QuantumCircuit.
+        r"""Construct one QkNN QuantumCircuit.
+
+        The Oracle provided is mentioned in :afham2020:`Afham et al. (2020)`
+        as the parameter :math:`\mathcal{W}`, and is created via the method
+        :py:func:`~qiskit_quantum_knn.qknn.qknn_construction.create_oracle`.
+
         Args:
-            state_to_classify (numpy.ndarray): array of dimension N complex
-                values describing the state to classify via KNN.
-            oracle (qiskit Instruction): oracle W|i>|0> = W|i>|phi_i> for applying
+            state_to_classify (array-like): array of dimension ``N`` complex
+                values describing the state to classify via kNN.
+            oracle (qiskit Instruction): oracle :math:`\mathcal{W}` for applying
                 training data.
             add_measurement (bool): controls if measurements must be added
                 to the classical registers.
+
         Returns:
-            QuantumCircuit: the constructed circuit.
+            QuantumCircuit: The constructed circuit.
         """
         return qc.construct_circuit(
             state_to_classify,
@@ -106,24 +181,22 @@ class QKNeighborsClassifier(QuantumAlgorithm):
     @staticmethod
     def construct_circuits(data_to_predict,
                            training_data) -> qk.QuantumCircuit:
-        """
-        Construct circuits and get the counts representing the distance between
-        the training data and provided data_to_predict.
+        """Constructs all quantum circuits for each datum to classify.
 
         Args:
-            data_to_predict (ndarray): data points, 2-D array, NxD, where
-                N is the number of data points and D is the dimensionality of
-                the vector. This should coincide with the provided training
-                data.
-            training_data (ndarray): data points which we want to know
-                the distance of between data_to_predict.
-            quantum_instance (Union[QuantumInstance, BaseBackend]): optional,
-                quantum instance with all experiment settings, or basebackend.
+            data_to_predict (array): data points, 2-D array, of shape
+                ``(N, D)``, where ``N`` is the number of data points and ``D``
+                is the dimensionality of the vector. ``D`` should coincide with
+                the provided training data.
+            training_data (array): data points which you want to know
+                the distance of between :py:attr:`data_to_predict`.
+
         Returns:
-            numpy.ndarray: 1-D vector with the contrast values for each data
-                           point provided (so length N).
+            numpy.ndarray: The constructed circuits.
+
         Raises:
             AquaError: Quantum instance is not present.
+
         """
         measurement = True  # can be adjusted if statevector_sim
         oracle = qc.create_oracle(training_data)
@@ -146,6 +219,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
     @staticmethod
     def execute_circuits(quantum_instance: UnionQInstBaseB,
                          circuits) -> qres.Result:
+        """Executes the provided circuits (type array-like)."""
         logger.info("Executing circuits")
         result = quantum_instance.execute(circuits)
         logger.info("Done.")
@@ -154,6 +228,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
     def get_circuit_results(self,
                             circuits,
                             quantum_instance: OptionalQInstance = None) -> qres.Result:
+        """Get the qiskit Results from the provided quantum circuits."""
         self._quantum_instance = self._quantum_instance \
             if quantum_instance is None else quantum_instance
         if self._quantum_instance is None:
@@ -168,15 +243,39 @@ class QKNeighborsClassifier(QuantumAlgorithm):
 
     @staticmethod
     def get_all_contrasts(circuit_results: qres.Result):
+        r"""Get all contrasts.
+
+        Gets the contrast values which are calculated via
+        :func:`calculate_contrasts` and saves these in an array. For more about
+        contrasts, see :meth:`calculate_contrasts`.
+
+        Args:
+            circuit_results (qiskit.result.Result): the results from a QkNN
+                circuit build using ``QKNeighborsClassifier``.
+
+        Returns:
+            array: all contrasts corresponding to
+        """
         logger.info("Getting contrast values.")
+        # get all counts from the circuit results
         all_counts = circuit_results.get_counts()
-        # - 2 to compensate for the ' 0' or ' 1' at the end of the key
+        # determine the length of the computational basis register by checking
+        #  the length of the count result
+        # the -2 is there to compensate for the ' 0' or ' 1' at the end of
+        #  the key.
         num_qubits = len(list(all_counts[0].keys())[0]) - 2
+
+        # initialize the array which will hold the contrast values
+        n_occurrences = len(all_counts)  # number of occurring states
+        n_datapoints = 2 ** num_qubits  # number of data points
+
         all_contrasts = np.empty(
-            shape=(len(all_counts), 2 ** num_qubits),
-            # dtype=dict
+            shape=(n_occurrences, n_datapoints),
         )
+
+        # loop over all counted states
         for i, counts in enumerate(all_counts):
+            # calculate the contrast values q(i) for this set of counts
             all_contrasts[i] = \
                 QKNeighborsClassifier.calculate_contrasts(counts)
         logger.info("Done.")
@@ -185,15 +284,35 @@ class QKNeighborsClassifier(QuantumAlgorithm):
 
     @staticmethod
     def calculate_contrasts(counts: Dict[str, int]) -> np.ndarray:
-        """Calculate contrasts q(i).
-        Calculates contrasts q(i) for each training state (i) in the
-        computational basis of the KNN QuantumCircuit.
+        r"""Calculate contrasts :math:`q(i)`.
+
+        Calculates contrasts :math:`q(i)` for each training state ``i`` in the
+        computational basis of the KNN QuantumCircuit. The contrasts
+        are according to :afham2020:`Afham et al. (2020)`.
+
+        .. math::
+
+           q(i) &= p_0(i) - p_1(i) \\
+                &= \frac{1 + F_i}
+                    {M + \sum_{j=1}^M F_j} - \
+                    \frac{1 - F_i}
+                    {M - \sum_{j=1}^M F_j} \\
+                &= \frac{2(F_i - \langle F \rangle)}
+                    {M(1 - \langle F \rangle^2)},
+
+        and correspond linearly to the fidelity :math:`F_i` between the
+        unclassified datum :math:`\psi` and :math:`\phi_i`.
+
         Args:
             counts (dict): counts pulled from a qiskit Result from the QkNN.
+
         Returns:
-            numpy.ndarray[int]: ndarray of length n_samples with at each
-                index i representing state |i> from the computational basis
-                the contrast belonging to it.
+            array: the contrasts values.
+
+            ndarray of length ``n_samples`` with each index ``i`` (representing
+            state :math:`|i\rangle` from the computational basis) the contrast
+            belonging to :math:`|i\rangle`.
+
         """
         # first get the total counts of 0 and 1 in the control qubit
         subsystem_counts = ss.get_subsystems_counts(counts)
@@ -240,21 +359,30 @@ class QKNeighborsClassifier(QuantumAlgorithm):
     @staticmethod
     def setup_control_counts(control_counts: Dict[str, int]) -> Dict[str, int]:
         """Sets up control counts dict.
-        In Qiskit, if a certain value is not measured (or counted), it has
-        no appearance in the counts dict from the Result. Thus, this method
-        checks if this has happened and adds a value with counts set to 0.
 
-        This means that if the control_counts has both occurrences of 0 and 1,
-        this method just returns that exact same dictionary.
+        In Qiskit, if a certain value is not measured (or counted), it has
+        no appearance in the ``counts`` dictionary from the :py:class:`Result`.
+        Thus, this method checks if this has happened and adds a value with
+        counts set to 0.
+
+        Notes:
+            This means that if the :py:attr:`control_counts` has both
+            occurrences of ``0`` and ``1``, this method just returns that exact
+            same dictionary, unmodified.
+
         Args:
-            control_counts (dict): dictionary from a Result representing the
-                control qubit in the qknn circuit.
+            control_counts (dict): dictionary from a :py:class:`Result`
+            representing the control qubit in the QkNN circuit.
+
         Returns:
-            dict: the same control_counts dict as provided but with non-counted
+            dict: The modified control counts.
+
+                The same control_counts dict as provided but with non-counted
                 occurrence added as well if needed.
+
         Raises:
-            ValueError: if the provided dict does not coincide with the
-                Result from the qknn.
+            ValueError: if the provided dictionary does not coincide with the
+                :py:class:`Result` from the QkNN.
         """
         if len(control_counts) != 2:
             raise ValueError("Provided dict not correct length. Should be 2,"
@@ -292,6 +420,17 @@ class QKNeighborsClassifier(QuantumAlgorithm):
     def majority_vote(self,
                       labels: np.ndarray,
                       contrasts: np.ndarray) -> np.ndarray:
+        """Performs majority vote with the :math:`k` nearest to determine class.
+
+        Args:
+            labels (array-like): The labels of the training data provided to
+                the :class:`QKNeighborsClassifier`.
+            contrasts (array-like): The contrasts calculated using
+                :meth:`get_all_contrasts'.
+
+        Returns:
+            ndarray: The labels resulted from the majority vote.
+        """
         logger.info("Performing majority vote.")
         # get the indices of the n highest values in contrasts, where n is
         #  self.n_neighbors (these are unsorted)
@@ -318,43 +457,6 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         logger.info("Done.")
         return votes.real.flatten()
 
-    def kneighbors(self, X: np.ndarray = None,
-                   n_neigbors: int = None,
-                   return_contrast: bool = True):
-        """Finds the K-n_neighbors of a point.
-        Note:
-            This method is mainly based on the KNeighborsMixin.kneighbors()
-            method from scikit-learn
-        Params:
-            X (numpy.ndarray): shape (n_queries, n_features) indicating the
-                query point or points.
-            n_neigbors (int): number of neigbors to get (default is the value
-                passed to the constructor).
-            return_contrast (boolean): optional, defaults to True. If False,
-                contrasts will not be returned.
-        Returns:
-            neigh_contr (np.ndarray): shape (n_queries, n_features),
-                representing the contrasts of the points, only present if
-                return_contrast=True.
-            neigh_ind (np.ndarray): shape (n_queries, n_features), indices of
-                the nearest points in the dataset.
-        """
-
-        if n_neigbors is None:
-            n_neigbors = self.n_neighbors
-        elif n_neigbors <= 0:
-            raise ValueError(
-                "Expected n_neighbors > 0. Got %d" %
-                n_neigbors
-            )
-        else:
-            if not isinstance(n_neigbors, numbers.Integral):
-                raise TypeError(
-                    "n_neighbors does not take %s value, "
-                    "enter integer value" %
-                    type(n_neigbors)
-                )
-
     @property
     def ret(self) -> Dict:
         """ Returns result.
@@ -373,7 +475,8 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         """
         self.instance.ret = new_value
 
-    def predict(self,data) -> np.ndarray:
+    def predict(self, data) -> np.ndarray:
+        """Predict the labels of the provided data."""
         return self.instance.predict(data)
 
     def _run(self) -> Dict:

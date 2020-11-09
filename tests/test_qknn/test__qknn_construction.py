@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from qiskit_quantum_knn.qknn._qknn_construction import *
+from qiskit_quantum_knn.qknn.qknn_construction import *
 
 
 def test_create_qknn_2_training_states(caplog):

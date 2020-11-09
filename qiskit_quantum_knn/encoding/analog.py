@@ -4,7 +4,44 @@ import numpy as np
 
 
 def encode(classical_data):
-    """Encodes the given classical state to a quantum state.
+    r"""Encodes the given classical state to a quantum state.
+
+    The encoding of a state makes sure that the following rule within quantum
+    mechanics is met:
+
+    .. math:: \langle \psi | \psi \rangle = 1,
+
+    for a quantum state :math:`\psi`. To put it in other words, suppose that
+    :math:`\psi = \sum_i c_i x_i` with :math:`c_i \in \mathbb{C}`, the encoding
+    will normalise the values :math:`c_i` such that :math:`\sum_i |c_i|^2 = 1`.
+
+    Example:
+
+        Simple encoding using real values.
+
+        .. jupyter-execute::
+
+            from qiskit_quantum_knn.encoding.analog import encode
+
+            classical_state = [
+                [1, 1, 1, 1]
+            ]
+            normalised_state = encode(classical_state)
+
+            print(normalised_state)
+            print((normalised_state ** 2).sum())
+
+        Using complex values.
+
+        .. jupyter-execute::
+
+            classical_state = [
+                [1+2j, 1-3j, 1+2j, 1+3j]
+            ]
+            normalised_state = encode(classical_state)
+
+            print(normalised_state)
+            print((normalised_state ** 2).sum())
 
     Args:
         classical_data (vector_like): state(s) to encode.
