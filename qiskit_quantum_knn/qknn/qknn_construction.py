@@ -379,7 +379,7 @@ def initialise_qknn(log2_dim: int,
 
 def state_transformation(qknn_circ: qk.QuantumCircuit,
                          oracle: qinst.Instruction) -> qk.QuantumCircuit:
-    """applies :math:`H`-gates and the Oracle :math:`\mathcal{W}` to the
+    r"""applies :math:`H`-gates and the Oracle :math:`\mathcal{W}` to the
     circuit, and applies the :math:`SWAP`-test.
 
     Coincides with Step 2: the "state transformation" section from
