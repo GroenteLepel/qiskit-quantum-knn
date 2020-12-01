@@ -5,7 +5,7 @@ name: Test project
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, fix-pytest-action ]
   pull_request:
     branches: [ master ]
 
