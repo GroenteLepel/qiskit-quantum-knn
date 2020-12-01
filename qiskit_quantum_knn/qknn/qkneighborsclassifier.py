@@ -384,10 +384,6 @@ class QKNeighborsClassifier(QuantumAlgorithm):
             ValueError: if the provided dictionary does not coincide with the
                 :py:class:`Result` from the QkNN.
         """
-        if len(control_counts) != 2:
-            raise ValueError("Provided dict not correct length. Should be 2,"
-                             "but is {0:d}".format(len(control_counts)))
-
         # constant describing the states possible in control_counts
         control_states = np.array(['0', '1'])
         # check if substition of 0 count value must be done
