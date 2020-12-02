@@ -428,23 +428,32 @@ class QKNeighborsClassifier(QuantumAlgorithm):
             ndarray: The labels resulted from the majority vote.
         """
         logger.info("Performing majority vote.")
-        # get the indices of the n highest values in contrasts, where n is
-        #  self.n_neighbors (these are unsorted)
-        argpartition = np.argpartition(
+        # get the neighbors sorted on their distance (lowest first) per data
+        #  point.
+        sorted_neighbors = np.argpartition(
             contrasts,
             -self.n_neighbors
         )
+        # get the number of participating values
         n_queries = len(labels)
 
+        # modify the argpartition to remove any "filler" qubits, e.g. if 5
+        #  train data are given, n_queries=5 but number of qubits states must
+        #  always be a positive number of 2 (will be 8 in example case)
+        # these values can accidentally participate in the voting, hence these
+        #  must be removed
+        sorted_neighbors = sorted_neighbors[sorted_neighbors < n_queries]\
+            .reshape(sorted_neighbors.shape[0], n_queries)
+
         if n_queries == 1:
-            indices_of_neighbors = argpartition[-self.n_neighbors:]
+            n_closest_neighbors = sorted_neighbors[-self.n_neighbors:]
         else:
             # this is the case when more than one data point is given to this
             #  majority vote, so the shape will be of (n_points, m)
-            indices_of_neighbors = argpartition[:, -self.n_neighbors:]
+            n_closest_neighbors = sorted_neighbors[:, -self.n_neighbors:]
 
         # voters = np.take(data, indices_of_neighbors, axis=0)
-        voter_labels = np.take(labels, indices_of_neighbors)
+        voter_labels = np.take(labels, n_closest_neighbors)
         if n_queries == 1:
             votes, counts = stats.mode(voter_labels)
         else:
