@@ -242,19 +242,19 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         )
 
     @staticmethod
-    def get_all_contrasts(circuit_results: qres.Result):
+    def get_all_fidelities(circuit_results: qres.Result):
         r"""Get all contrasts.
 
-        Gets the contrast values which are calculated via
-        :func:`calculate_contrasts` and saves these in an array. For more about
-        contrasts, see :meth:`calculate_contrasts`.
+        Gets the fidelity values which are calculated via
+        :func:`calculate_fidelities` and saves these in an array. For more about
+        fidelities, see :meth:`calculate_fidelities`.
 
         Args:
             circuit_results (qiskit.result.Result): the results from a QkNN
                 circuit build using ``QKNeighborsClassifier``.
 
         Returns:
-            array: all contrasts corresponding to
+            array: all fidelities corresponding to the QkNN.
         """
         logger.info("Getting contrast values.")
         # get all counts from the circuit results
@@ -269,18 +269,105 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         n_occurrences = len(all_counts)  # number of occurring states
         n_datapoints = 2 ** num_qubits  # number of data points
 
-        all_contrasts = np.empty(
+        all_fidelities = np.empty(
             shape=(n_occurrences, n_datapoints),
         )
 
         # loop over all counted states
         for i, counts in enumerate(all_counts):
             # calculate the contrast values q(i) for this set of counts
-            all_contrasts[i] = \
-                QKNeighborsClassifier.calculate_contrasts(counts)
+            all_fidelities[i] = \
+                QKNeighborsClassifier.calculate_fidelities(counts)
         logger.info("Done.")
 
-        return all_contrasts
+        return all_fidelities
+
+    @staticmethod
+    def calculate_fidelities(counts: Dict[str, int]) -> np.ndarray:
+        r"""Calculate the fidelities :math:`F_i`.
+
+        Calculates fidelities :math:`F_i` for each training state ``i`` in the
+        computational basis of the kNN QuantumCircuit. The fidelity can be
+        calculated via:
+
+        .. math::
+
+            F_i = \frac{M}{2} \left(p_0 (i) - p_1 (i)\right) \cdot \
+                \left(1 - \left( p(0) - p(1) \right) ^2 \right) + \
+                \left( p(0) - p(1) \right).
+
+        The values :math:`p(n)` are the probabilities that the control qubit is
+        in state :math:`n`, and the values :math:`p_n (i)` are the probabilities
+        that the computational basis is in state :math:`i` given the control
+        qubit is in state :math:`n`.
+
+        These values can be approximated by running the circuit :math:`T`
+        times using:
+
+        .. math::
+            p_n (i) \sim \bar{p}_n (i) = c_n(i) / T_n , \
+            p (n) \sim \bar{p} (n) = T_n / T,
+
+        where :math:`c_n(i), T_n` are the counts of the computational basis
+        in state :math:`i` given the control qubit in state :math:`n` and the
+        control qubit in state :math:`n`, respectively.
+
+        Args:
+            counts (dict): counts pulled from a qiskit Result from the QkNN.
+
+        Returns:
+            array: the fidelity values.
+
+            ndarray of length ``n_samples`` with each index ``i`` (representing
+            state :math:`|i\rangle` from the computational basis) the fidelity
+            belonging to :math:`|i\rangle`.
+        """
+        # first get the total counts of 0 and 1 in the control qubit
+        subsystem_counts = ss.get_subsystems_counts(counts)
+        # the counts from the control qubit are in the second register
+        #  by some magical qiskit reason
+        control_counts = QKNeighborsClassifier.setup_control_counts(
+            subsystem_counts[1]
+        )
+        total_counts = control_counts['0'] + control_counts['1']
+        exp_fidelity = np.abs(control_counts['0'] - control_counts['1']) / \
+            total_counts
+
+        # now get the counts for the fidelities define possible states that
+        #  the computational can be in.
+        num_qubits = len(list(subsystem_counts[0].keys())[0])
+        comp_basis_states = \
+            list(itertools.product(['0', '1'], repeat=num_qubits))
+        # initialise dict which is going to contain the fidelity values
+        fidelities = np.zeros(2 ** num_qubits, dtype=float)
+        for comp_state in comp_basis_states:
+            # convert list of '0's and '1's to one string e.g.
+            #  ('0', '1', '0') --> '010'
+            comp_state = ''.join(comp_state)
+            # init fidelity value for this state
+            fidelity = 0.
+            for control_state in control_counts.keys():
+                state_str = comp_state + ' ' + control_state
+                if state_str not in counts:
+                    logger.debug(
+                        "State {0:s} not found in counts {1}. Adding"
+                        "naught to contrast value."
+                        .format(
+                            state_str,
+                            counts
+                        )
+                    )
+                    fidelity += 0  # added for readability
+                else:
+                    fidelity += \
+                        (-1) ** int(control_state) * \
+                        (counts[state_str]) / control_counts[control_state] * \
+                        (1 - exp_fidelity ** 2)
+            index_state = int(comp_state, 2)
+            fidelity *= 2 ** num_qubits / 2
+            fidelity += exp_fidelity
+            fidelities[index_state] = fidelity
+        return fidelities
 
     @staticmethod
     def calculate_contrasts(counts: Dict[str, int]) -> np.ndarray:
@@ -415,36 +502,49 @@ class QKNeighborsClassifier(QuantumAlgorithm):
 
     def majority_vote(self,
                       labels: np.ndarray,
-                      contrasts: np.ndarray) -> np.ndarray:
+                      fidelities: np.ndarray) -> np.ndarray:
         """Performs majority vote with the :math:`k` nearest to determine class.
 
         Args:
             labels (array-like): The labels of the training data provided to
                 the :class:`QKNeighborsClassifier`.
-            contrasts (array-like): The contrasts calculated using
-                :meth:`get_all_contrasts'.
+            fidelities (array-like): The fidelities calculated using
+                :meth:`get_all_fidelities'.
 
         Returns:
             ndarray: The labels resulted from the majority vote.
         """
         logger.info("Performing majority vote.")
-        # get the indices of the n highest values in contrasts, where n is
-        #  self.n_neighbors (these are unsorted)
-        argpartition = np.argpartition(
-            contrasts,
+        # get the neighbors sorted on their distance (lowest first) per data
+        #  point.
+        if np.any(fidelities < -0.1) or np.any(fidelities > 1.1):
+            raise ValueError("Fidelities contain values outside range 0<=F<=1:"
+                             f"{fidelities}")
+
+        sorted_neighbors = np.argpartition(
+            1 - fidelities,
             -self.n_neighbors
         )
+        # get the number of participating values
         n_queries = len(labels)
 
+        # modify the argpartition to remove any "filler" qubits, e.g. if 5
+        #  train data are given, n_queries=5 but number of qubits states must
+        #  always be a positive number of 2 (will be 8 in example case)
+        # these values can accidentally participate in the voting, hence these
+        #  must be removed
+        sorted_neighbors = sorted_neighbors[sorted_neighbors < n_queries]\
+            .reshape(sorted_neighbors.shape[0], n_queries)
+
         if n_queries == 1:
-            indices_of_neighbors = argpartition[-self.n_neighbors:]
+            n_closest_neighbors = sorted_neighbors[:self.n_neighbors]
         else:
             # this is the case when more than one data point is given to this
             #  majority vote, so the shape will be of (n_points, m)
-            indices_of_neighbors = argpartition[:, -self.n_neighbors:]
+            n_closest_neighbors = sorted_neighbors[:, :self.n_neighbors]
 
         # voters = np.take(data, indices_of_neighbors, axis=0)
-        voter_labels = np.take(labels, indices_of_neighbors)
+        voter_labels = np.take(labels, n_closest_neighbors)
         if n_queries == 1:
             votes, counts = stats.mode(voter_labels)
         else:

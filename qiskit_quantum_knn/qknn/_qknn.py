@@ -25,13 +25,13 @@ class _QKNN(_QSVM_ABC):
         circuit_results = self._qalgo.get_circuit_results(
             circuits
         )
-        contrasts = self._qalgo.get_all_contrasts(
+        fidelities = self._qalgo.get_all_fidelities(
             circuit_results
         )
 
         predicted_labels = self._qalgo.majority_vote(
             self._qalgo.training_labels,
-            contrasts
+            fidelities
         )
 
         return predicted_labels
@@ -44,17 +44,17 @@ class _QKNN(_QSVM_ABC):
         circuit_results = self._qalgo.get_circuit_results(
             circuits
         )
-        contrasts = self._qalgo.get_all_contrasts(
+        fidelities = self._qalgo.get_all_fidelities(
             circuit_results
         )
 
         predicted_labels = self._qalgo.majority_vote(
             self._qalgo.training_labels,
-            contrasts
+            fidelities
         )
 
         self._ret['counts'] = circuit_results.get_counts()
-        self._ret['contrasts'] = contrasts
+        self._ret['fidelities'] = fidelities
         self._ret['predicted_labels'] = predicted_labels
 
     @staticmethod
