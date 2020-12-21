@@ -283,6 +283,93 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         return all_contrasts
 
     @staticmethod
+    def calculate_fidelities(counts: Dict[str, int]) -> np.ndarray:
+        r"""Calculate the fidelities :math:`F_i`.
+
+        Calculates fidelities :math:`F_i` for each training state ``i`` in the
+        computational basis of the kNN QuantumCircuit. The fidelity can be
+        calculated via:
+
+        .. math::
+
+            F_i = \frac{M}{2} \left(p_0 (i) - p_1 (i)\right) \cdot \
+                \left(1 - \left( p(0) - p(1) \right) ^2 \right) + \
+                \left( p(0) - p(1) \right).
+
+        The values :math:`p(n)` are the probabilities that the control qubit is
+        in state :math:`n`, and the values :math:`p_n (i)` are the probabilities
+        that the computational basis is in state :math:`i` given the control
+        qubit is in state :math:`n`.
+
+        These values can be approximated by running the circuit :math:`T`
+        times using:
+
+        .. math::
+            p_n (i) \sim \bar{p}_n (i) = c_n(i) / T_n , \
+            p (n) \sim \bar{p} (n) = T_n / T,
+
+        where :math:`c_n(i), T_n` are the counts of the computational basis
+        in state :math:`i` given the control qubit in state :math:`n` and the
+        control qubit in state :math:`n`, respectively.
+
+        Args:
+            counts (dict): counts pulled from a qiskit Result from the QkNN.
+
+        Returns:
+            array: the fidelity values.
+
+            ndarray of length ``n_samples`` with each index ``i`` (representing
+            state :math:`|i\rangle` from the computational basis) the fidelity
+            belonging to :math:`|i\rangle`.
+        """
+        # first get the total counts of 0 and 1 in the control qubit
+        subsystem_counts = ss.get_subsystems_counts(counts)
+        # the counts from the control qubit are in the second register
+        #  by some magical qiskit reason
+        control_counts = QKNeighborsClassifier.setup_control_counts(
+            subsystem_counts[1]
+        )
+        total_counts = control_counts['0'] + control_counts['1']
+        exp_fidelity = np.abs(control_counts['0'] - control_counts['1']) / \
+            total_counts
+
+        # now get the counts for the fidelities define possible states that
+        #  the computational can be in.
+        num_qubits = len(list(subsystem_counts[0].keys())[0])
+        comp_basis_states = \
+            list(itertools.product(['0', '1'], repeat=num_qubits))
+        # initialise dict which is going to contain the fidelity values
+        fidelities = np.zeros(2 ** num_qubits, dtype=float)
+        for comp_state in comp_basis_states:
+            # convert list of '0's and '1's to one string e.g.
+            #  ('0', '1', '0') --> '010'
+            comp_state = ''.join(comp_state)
+            # init fidelity value for this state
+            fidelity = 0.
+            for control_state in control_counts.keys():
+                state_str = comp_state + ' ' + control_state
+                if state_str not in counts:
+                    logger.debug(
+                        "State {0:s} not found in counts {1}. Adding"
+                        "naught to contrast value."
+                        .format(
+                            state_str,
+                            counts
+                        )
+                    )
+                    fidelity += 0  # added for readability
+                else:
+                    fidelity += \
+                        (-1) ** int(control_state) * \
+                        (counts[state_str]) / control_counts[control_state] * \
+                        (1 - exp_fidelity ** 2)
+            index_state = int(comp_state, 2)
+            fidelity *= 2 ** num_qubits / 2
+            fidelity += exp_fidelity
+            fidelities[index_state] = fidelity
+        return fidelities
+
+    @staticmethod
     def calculate_contrasts(counts: Dict[str, int]) -> np.ndarray:
         r"""Calculate contrasts :math:`q(i)`.
 

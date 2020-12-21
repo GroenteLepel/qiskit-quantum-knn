@@ -8,6 +8,27 @@ def test_get_all_contrasts():
     assert True
 
 
+def test_calculate_fidelities():
+    ex_counts = {
+        '00 0': 10,
+        '00 1': 1,
+        '01 0': 20,
+        '01 1': 1,
+        '10 0': 15,
+        '10 1': 3,
+        '11 0': 2,
+        '11 1': 4,
+    }
+    fidelities = QKNeighborsClassifier.calculate_fidelities(ex_counts)
+    print(fidelities)
+
+    # no physically correct fidelities but
+    np.testing.assert_allclose(
+        fidelities,
+        [0.78826531, 1.01785714, 0.66326531, 0.24489796]
+    )
+
+
 def test_calculate_contrasts():
     assert True
 
