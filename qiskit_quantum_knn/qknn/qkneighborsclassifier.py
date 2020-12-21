@@ -242,19 +242,19 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         )
 
     @staticmethod
-    def get_all_contrasts(circuit_results: qres.Result):
+    def get_all_fidelities(circuit_results: qres.Result):
         r"""Get all contrasts.
 
-        Gets the contrast values which are calculated via
-        :func:`calculate_contrasts` and saves these in an array. For more about
-        contrasts, see :meth:`calculate_contrasts`.
+        Gets the fidelity values which are calculated via
+        :func:`calculate_fidelities` and saves these in an array. For more about
+        fidelities, see :meth:`calculate_fidelities`.
 
         Args:
             circuit_results (qiskit.result.Result): the results from a QkNN
                 circuit build using ``QKNeighborsClassifier``.
 
         Returns:
-            array: all contrasts corresponding to
+            array: all fidelities corresponding to the QkNN.
         """
         logger.info("Getting contrast values.")
         # get all counts from the circuit results
@@ -269,18 +269,18 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         n_occurrences = len(all_counts)  # number of occurring states
         n_datapoints = 2 ** num_qubits  # number of data points
 
-        all_contrasts = np.empty(
+        all_fidelities = np.empty(
             shape=(n_occurrences, n_datapoints),
         )
 
         # loop over all counted states
         for i, counts in enumerate(all_counts):
             # calculate the contrast values q(i) for this set of counts
-            all_contrasts[i] = \
-                QKNeighborsClassifier.calculate_contrasts(counts)
+            all_fidelities[i] = \
+                QKNeighborsClassifier.calculate_fidelities(counts)
         logger.info("Done.")
 
-        return all_contrasts
+        return all_fidelities
 
     @staticmethod
     def calculate_fidelities(counts: Dict[str, int]) -> np.ndarray:
@@ -502,14 +502,14 @@ class QKNeighborsClassifier(QuantumAlgorithm):
 
     def majority_vote(self,
                       labels: np.ndarray,
-                      contrasts: np.ndarray) -> np.ndarray:
+                      fidelities: np.ndarray) -> np.ndarray:
         """Performs majority vote with the :math:`k` nearest to determine class.
 
         Args:
             labels (array-like): The labels of the training data provided to
                 the :class:`QKNeighborsClassifier`.
-            contrasts (array-like): The contrasts calculated using
-                :meth:`get_all_contrasts'.
+            fidelities (array-like): The fidelities calculated using
+                :meth:`get_all_fidelities'.
 
         Returns:
             ndarray: The labels resulted from the majority vote.
@@ -517,8 +517,12 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         logger.info("Performing majority vote.")
         # get the neighbors sorted on their distance (lowest first) per data
         #  point.
+        if np.any(fidelities < -0.1) or np.any(fidelities > 1.1):
+            raise ValueError("Fidelities contain values outside range 0<=F<=1:"
+                             f"{fidelities}")
+
         sorted_neighbors = np.argpartition(
-            contrasts,
+            1 - fidelities,
             -self.n_neighbors
         )
         # get the number of participating values
@@ -533,11 +537,11 @@ class QKNeighborsClassifier(QuantumAlgorithm):
             .reshape(sorted_neighbors.shape[0], n_queries)
 
         if n_queries == 1:
-            n_closest_neighbors = sorted_neighbors[-self.n_neighbors:]
+            n_closest_neighbors = sorted_neighbors[:self.n_neighbors]
         else:
             # this is the case when more than one data point is given to this
             #  majority vote, so the shape will be of (n_points, m)
-            n_closest_neighbors = sorted_neighbors[:, -self.n_neighbors:]
+            n_closest_neighbors = sorted_neighbors[:, :self.n_neighbors]
 
         # voters = np.take(data, indices_of_neighbors, axis=0)
         voter_labels = np.take(labels, n_closest_neighbors)
