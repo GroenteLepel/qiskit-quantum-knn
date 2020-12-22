@@ -81,7 +81,6 @@ qiskit-aer==0.6.1
 qiskit-aqua==0.7.5
 qiskit-ibmq-provider==0.9.0
 qiskit-ignis==0.4.0
--e git+https://github.com/GroenteLepel/qiskit-quantum-knn.git@8994adeb953ade67e777dc54556b552dbdfb9ad0#egg=qiskit_quantum_knn
 qiskit-terra==0.15.2
 Quandl==3.5.2
 readme-renderer==26.0

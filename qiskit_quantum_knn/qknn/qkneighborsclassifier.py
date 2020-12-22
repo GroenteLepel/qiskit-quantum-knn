@@ -256,7 +256,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         Returns:
             array: all fidelities corresponding to the QkNN.
         """
-        logger.info("Getting contrast values.")
+        logger.info("Getting fidelity values.")
         # get all counts from the circuit results
         all_counts = circuit_results.get_counts()
         # determine the length of the computational basis register by checking
@@ -517,9 +517,10 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         logger.info("Performing majority vote.")
         # get the neighbors sorted on their distance (lowest first) per data
         #  point.
-        if np.any(fidelities < -0.1) or np.any(fidelities > 1.1):
+        if np.any(fidelities < -0.2) or np.any(fidelities > 1.2):
             raise ValueError("Fidelities contain values outside range 0<=F<=1:"
-                             f"{fidelities}")
+                             f"{fidelities[fidelities < -0.2]}"
+                             f"{fidelities[fidelities > 1.2]}")
 
         sorted_neighbors = np.argpartition(
             1 - fidelities,
