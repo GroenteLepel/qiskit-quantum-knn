@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="qiskit_quantum_knn",
-    version="1.0.2-beta.1",
+    version="1.0.2-beta.3",
     author="Daniel J. Kok",
     author_email="djkok.github@icloud.com",
     long_description=long_description,
