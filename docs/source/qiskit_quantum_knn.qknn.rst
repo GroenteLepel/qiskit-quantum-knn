@@ -1,8 +1,5 @@
-qiskit\_quantum\_knn.qknn package
+Quantum kNN package
 =================================
-
-Submodules
-----------
 
 qiskit\_quantum\_knn.qknn.qkneighborsclassifier module
 ------------------------------------------------------
