@@ -1,8 +1,5 @@
-qiskit\_quantum\_knn.encoding package
+Encoding package
 =====================================
-
-Submodules
-----------
 
 qiskit\_quantum\_knn.encoding.analog module
 -------------------------------------------
