@@ -363,9 +363,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
                         (-1) ** int(control_state) * \
                         (counts[state_str]) / control_counts[control_state] * \
                         (1 - exp_fidelity ** 2)
-            index_state = int(
-                comp_state[::-1], 2
-            )  # Qiskit uses somewhat unconvential reverse ordering of tensor product states
+            index_state = int(comp_state, 2)
             fidelity *= 2 ** num_qubits / 2
             fidelity += exp_fidelity
             fidelities[index_state] = fidelity
@@ -440,9 +438,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
                     contrast += \
                         (-1) ** int(control_state) * \
                         (counts[state_str]) / control_counts[control_state]
-            index_state = int(
-                comp_state[::-1], 2
-            )  # Qiskit uses somewhat unconvential reverse ordering of tensor product states
+            index_state = int(comp_state, 2)
             contrasts[index_state] = contrast
 
         return contrasts
