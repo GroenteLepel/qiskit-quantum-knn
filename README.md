@@ -1,8 +1,9 @@
 # Qiskit Quantum kNN
 
 
-| [![INGLogo](http://logok.org/wp-content/uploads/2014/11/ING_logo.png)][ing-home]  | [![RULogo](https://www.ru.nl/publish/pages/954125/ru_en_1.jpg)][ru-home] |
+| <img src="http://logok.org/wp-content/uploads/2014/11/ING_logo.png" width="1000">  | <img src="https://www.ru.nl/views/ru-baseline/images/logos/ru_nl.svg" width="1000"> |
 :---:|:---:
+
 
 [![License](https://img.shields.io/github/license/GroenteLepel/qiskit-quantum-knn)](https://opensource.org/licenses/Apache-2.0)
 [![](https://img.shields.io/github/v/release/GroenteLepel/qiskit-quantum-knn)](https://github.com/GroenteLepel/qiskit-quantum-knn/releases/)
