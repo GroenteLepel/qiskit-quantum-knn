@@ -3,16 +3,16 @@
 
 # In[1]:
 
-
 from qiskit_quantum_knn.qknn import QKNeighborsClassifier
 from qiskit_quantum_knn.encoding import analog
-from qiskit import aqua
 from sklearn import datasets
 import qiskit as qk
+from qiskit.utils import QuantumInstance
 
 # initialising the quantum instance
 backend = qk.BasicAer.get_backend('qasm_simulator')
-instance = aqua.QuantumInstance(backend, shots=10000)
+
+instance = QuantumInstance(backend, shots=10000)
 
 # initialising the qknn model
 qknn = QKNeighborsClassifier(
