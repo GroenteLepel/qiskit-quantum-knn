@@ -10,7 +10,8 @@ import scipy.stats as stats
 import qiskit as qk
 import qiskit.result as qres
 import qiskit.tools as qktools
-import qiskit.aqua as aqua
+from qiskit.utils import QuantumInstance
+
 import qiskit.providers as qkp
 import qiskit.aqua.utils.subsystem as ss
 from qiskit.aqua.algorithms import QuantumAlgorithm
@@ -21,7 +22,7 @@ from qiskit_quantum_knn.qknn import qknn_construction as qc
 
 logger = logging.getLogger(__name__)
 
-UnionQInstBaseB = Union[aqua.QuantumInstance, qkp.BaseBackend]
+UnionQInstBaseB = Union[QuantumInstance, qkp.BaseBackend]
 OptionalQInstance = Optional[UnionQInstBaseB]
 
 
