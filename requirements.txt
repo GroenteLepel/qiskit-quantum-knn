@@ -105,9 +105,7 @@ PyYAML==5.4.1
 pyzmq==22.3.0
 qiskit==0.34.2
 qiskit-aer==0.10.3
-qiskit-aqua==0.7.5
 qiskit-ibmq-provider==0.18.3
-qiskit-ignis==0.7.0
 qiskit-terra==0.19.2
 Quandl==3.7.0
 readme-renderer==34.0

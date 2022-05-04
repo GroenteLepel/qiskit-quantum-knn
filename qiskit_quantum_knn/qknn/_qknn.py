@@ -1,6 +1,6 @@
 import logging
 
-from qiskit.aqua.algorithms.classifiers.qsvm._qsvm_abc import _QSVM_ABC
+from qiskit_quantum_knn.qknn._qsvm_abc import _QSVM_ABC
 
 logger = logging.getLogger(__name__)
 
