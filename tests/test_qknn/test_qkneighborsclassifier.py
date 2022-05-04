@@ -1,6 +1,6 @@
 import numpy as np
 import qiskit as qk
-from qiskit import aqua
+from qiskit.utils import QuantumInstance
 import pytest
 
 from qiskit_quantum_knn.qknn import QKNeighborsClassifier
@@ -77,7 +77,7 @@ def test_majority_vote_result_shape(n_train_states: int,
 
 def test_qknn():
     backend = qk.BasicAer.get_backend('qasm_simulator')
-    instance = aqua.QuantumInstance(backend, shots=10000)
+    instance = QuantumInstance(backend, shots=10000)
 
     # initialising the qknn model
     qknn = QKNeighborsClassifier(

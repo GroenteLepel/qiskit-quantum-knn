@@ -3,25 +3,25 @@
 from typing import Dict, Optional, Union
 import logging
 import itertools
-import numbers
 
 import numpy as np
 import scipy.stats as stats
 import qiskit as qk
 import qiskit.result as qres
 import qiskit.tools as qktools
-import qiskit.aqua as aqua
+from qiskit.utils import QuantumInstance
+
 import qiskit.providers as qkp
-import qiskit.aqua.utils.subsystem as ss
-from qiskit.aqua.algorithms import QuantumAlgorithm
 import qiskit.circuit.instruction as qinst
 
 from qiskit_quantum_knn.qknn._qknn import _QKNN
 from qiskit_quantum_knn.qknn import qknn_construction as qc
+from qiskit_quantum_knn.qknn.quantum_algorithm import QuantumAlgorithm
+from qiskit_quantum_knn.qknn.utils import get_subsystems_counts
 
 logger = logging.getLogger(__name__)
 
-UnionQInstBaseB = Union[aqua.QuantumInstance, qkp.BaseBackend]
+UnionQInstBaseB = Union[QuantumInstance, qkp.BaseBackend]
 OptionalQInstance = Optional[UnionQInstBaseB]
 
 
@@ -63,13 +63,13 @@ class QKNeighborsClassifier(QuantumAlgorithm):
 
             from qiskit_quantum_knn.qknn import QKNeighborsClassifier
             from qiskit_quantum_knn.encoding import analog
-            from qiskit import aqua
+            from qiskit.utils import QuantumInstance
             from sklearn import datasets
             import qiskit as qk
 
             # initialising the quantum instance
             backend = qk.BasicAer.get_backend('qasm_simulator')
-            instance = aqua.QuantumInstance(backend, shots=10000)
+            instance = QuantumInstance(backend, shots=10000)
 
             # initialising the qknn model
             qknn = QKNeighborsClassifier(
@@ -195,7 +195,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
             numpy.ndarray: The constructed circuits.
 
         Raises:
-            AquaError: Quantum instance is not present.
+            ValueError: Quantum instance is not present.
 
         """
         measurement = True  # can be adjusted if statevector_sim
@@ -232,7 +232,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
         self._quantum_instance = self._quantum_instance \
             if quantum_instance is None else quantum_instance
         if self._quantum_instance is None:
-            raise aqua.AquaError(
+            raise ValueError(
                 "Either provide a quantum instance or set one up."
             )
 
@@ -323,7 +323,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
             belonging to :math:`|i\rangle`.
         """
         # first get the total counts of 0 and 1 in the control qubit
-        subsystem_counts = ss.get_subsystems_counts(counts)
+        subsystem_counts = get_subsystems_counts(counts)
         # the counts from the control qubit are in the second register
         #  by some magical qiskit reason
         control_counts = QKNeighborsClassifier.setup_control_counts(
@@ -402,7 +402,7 @@ class QKNeighborsClassifier(QuantumAlgorithm):
 
         """
         # first get the total counts of 0 and 1 in the control qubit
-        subsystem_counts = ss.get_subsystems_counts(counts)
+        subsystem_counts = get_subsystems_counts(counts)
         # the counts from the control qubit are in the second register
         #  by some magical qiskit reason
         control_counts = QKNeighborsClassifier.setup_control_counts(
