@@ -10,6 +10,16 @@
 [![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2FGroenteLepel%2Fqiskit-quantum-knn%2Fbadge%3Fref%3Dmaster&style=flat)](https://actions-badge.atrox.dev/GroenteLepel/qiskit-quantum-knn/goto?ref=master)
 [![Documentation Status](https://readthedocs.org/projects/qiskit-quantum-knn/badge/?version=latest)](https://qiskit-quantum-knn.readthedocs.io/en/latest/?badge=latest)
 
+> [!NOTE]
+> This project is archived on the 14th of march, 2025. It was way overdue.
+> I wrote this code at the time that Qiskit was still split in multiple
+> modules, but I briefly came past it at a time and saw that everything
+> is different now. This code does not work anymore in that way, and even
+> though some great enthusiastic people helped me keep it up-to-date, the
+> repo fell into neglect. I'm no longer working in this field of work,
+> but I am still proud of this accomplishment. I will keep this here
+> because of that, and because of the potential value that it could
+> probably deliver to someone else.
 
 **Qiskit Quantum kNN** is a pure quantum knn classifier for a gated quantum
 computer, which is build with [**Qiskit**][qiskit-github].
